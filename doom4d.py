@@ -42,23 +42,14 @@ class TextureLoader:
         
     def make_transparent(self, surface: pygame.Surface) -> pygame.Surface:
         """Convert black pixels to transparent (color key from VB6)"""
-        # Get pixel array
-        pixels = pygame.PixelArray(surface)
+        # Fast method: use pygame's colorkey
+        surface = surface.convert()
+        surface.set_colorkey((0, 0, 0))  # Black = transparent
         
-        # Create new surface with alpha
+        # Create surface with alpha
         new_surface = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+        new_surface.blit(surface, (0, 0))
         
-        width, height = surface.get_size()
-        for y in range(height):
-            for x in range(width):
-                color = surface.get_at((x, y))
-                # If pixel is black (or very dark), make it transparent
-                if color[0] < 15 and color[1] < 15 and color[2] < 15:
-                    new_surface.set_at((x, y), (0, 0, 0, 0))  # Transparent
-                else:
-                    new_surface.set_at((x, y), (color[0], color[1], color[2], 255))
-        
-        del pixels
         return new_surface
         
     def load_texture(self, name: str, relative_path: str) -> bool:
