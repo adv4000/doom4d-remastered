@@ -272,7 +272,7 @@ class Doom4D:
         # Intro animation state
         self.intro_stage = 0
         self.intro_timer = 0
-        self.intro_zoom = 0.0  # Start at 0 (full screen logo), increase to 80 (shrink to center)
+        self.intro_zoom = 50.0  # Start with some margin (already zoomed), then zoom more to 80
         self.intro_running = True
         
         # Game objects
