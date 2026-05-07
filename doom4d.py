@@ -385,10 +385,10 @@ class Doom4D:
         self.texture_loader.load_texture("energy_player", "EnergyPLY", False)
         self.texture_loader.load_texture("energy_computer", "EnergyCMP", False)
         
-        # Intro/Logo (no transparency)
+        # Intro/Logo (logo WITH transparency for black color)
         self.texture_loader.load_texture("intro_earth", "Earth/Intro1", False)
         self.texture_loader.load_texture("intro_death", "Death/Intro1", False)
-        self.texture_loader.load_texture("logo", "IntroD4D", False)
+        self.texture_loader.load_texture("logo", "IntroD4D", True)  # Black = transparent
         
         print(f"\nTotal textures loaded: {len(self.texture_loader.textures)}")
         
