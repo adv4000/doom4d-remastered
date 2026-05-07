@@ -272,7 +272,7 @@ class Doom4D:
         # Intro animation state
         self.intro_stage = 0
         self.intro_timer = 0
-        self.intro_zoom = 0  # Zoom margin (starts at 0, increases to 80)
+        self.intro_zoom = 80.0  # Start at 80 (full screen), zoom out to 0
         self.intro_running = True
         
         # Game objects
@@ -1228,9 +1228,9 @@ class Doom4D:
         
         # Zoom animation (PicShowed = 6 in original, runs EVERY FRAME)
         if self.intro_stage >= 6:
-            # Zoom in every frame (x = x + 0.3 in original Do loop)
-            self.intro_zoom = min(80.0, self.intro_zoom + 0.3 * (dt / 16.67))  # Normalize to ~60fps
-            if self.intro_zoom >= 80.0:
+            # Zoom OUT every frame (x = x + 0.3 in original, but we reverse it)
+            self.intro_zoom = max(0.0, self.intro_zoom - 0.5 * (dt / 16.67))  # Faster zoom
+            if self.intro_zoom <= 0.0:
                 self.intro_running = False
         
     def render(self):
