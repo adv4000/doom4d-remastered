@@ -373,6 +373,10 @@ class Doom4D:
         # Computer cube (no transparency)
         self.texture_loader.load_texture("computer", "CompKub", False)
         
+        # Energy bars (no transparency, use colorkey for black)
+        self.texture_loader.load_texture("energy_player", "EnergyPLY", False)
+        self.texture_loader.load_texture("energy_computer", "EnergyCMP", False)
+        
         # Intro/Logo (no transparency)
         self.texture_loader.load_texture("intro_earth", "Earth/Intro1", False)
         self.texture_loader.load_texture("intro_death", "Death/Intro1", False)
@@ -647,18 +651,24 @@ class Doom4D:
         glEnd()
         
     def draw_trees(self):
-        """Draw all trees"""
+        """Draw trees - Earth uses Tree1 (fir trees), Death uses Tree2 (dead trees)"""
         glColor4f(1, 1, 1, 1)
         
-        # Tree type 1
-        if "tree1" in self.texture_loader.textures:
+        # Earth: only Tree1 (fir trees)
+        if self.game_type == 1 and "tree1" in self.texture_loader.textures:
             self.texture_loader.bind("tree1")
+            # Draw both tree types with Tree1 texture
             for tree in self.trees1:
                 self.draw_sprite_3d(tree)
+            for tree in self.trees2:
+                self.draw_sprite_3d(tree)
                 
-        # Tree type 2
-        if "tree2" in self.texture_loader.textures:
+        # Hell: only Tree2 (dead trees)
+        if self.game_type == 2 and "tree2" in self.texture_loader.textures:
             self.texture_loader.bind("tree2")
+            # Draw both tree types with Tree2 texture
+            for tree in self.trees1:
+                self.draw_sprite_3d(tree)
             for tree in self.trees2:
                 self.draw_sprite_3d(tree)
                     
@@ -804,66 +814,55 @@ class Doom4D:
         glPopMatrix()
         
     def draw_energy_bars(self):
-        """Draw player and computer energy bars"""
+        """Draw player and computer energy bars using texture images"""
         glMatrixMode(GL_PROJECTION)
         glPushMatrix()
         glLoadIdentity()
-        glOrtho(0, SCREEN_W, SCREEN_H, 0, -1, 1)
+        glOrtho(0, SCREEN_W, 0, SCREEN_H, -1, 1)
         glMatrixMode(GL_MODELVIEW)
         glPushMatrix()
         glLoadIdentity()
         
         glDisable(GL_DEPTH_TEST)
-        glDisable(GL_TEXTURE_2D)
+        glEnable(GL_TEXTURE_2D)
         
-        bar_w, bar_h = 200, 25
+        bar_w = 200  # Width on screen
+        bar_h = 40   # Height on screen
         margin = 30
+        scale = bar_w / 100.0  # Scale from 100px texture width
         
         # Player energy (bottom left)
-        px, py = margin, SCREEN_H - bar_h - margin
-        glColor3f(0.2, 0.2, 0.2)
-        glBegin(GL_QUADS)
-        glVertex2i(px, py); glVertex2i(px + bar_w, py)
-        glVertex2i(px + bar_w, py + bar_h); glVertex2i(px, py + bar_h)
-        glEnd()
-        
-        pw = int(bar_w * (self.player.energy / self.player.max_energy))
-        glColor3f(0, 0.8, 0)
-        glBegin(GL_QUADS)
-        glVertex2i(px, py); glVertex2i(px + pw, py)
-        glVertex2i(px + pw, py + bar_h); glVertex2i(px, py + bar_h)
-        glEnd()
-        
-        glColor3f(1, 1, 1)
-        glLineWidth(2)
-        glBegin(GL_LINE_LOOP)
-        glVertex2i(px, py); glVertex2i(px + bar_w, py)
-        glVertex2i(px + bar_w, py + bar_h); glVertex2i(px, py + bar_h)
-        glEnd()
+        if "energy_player" in self.texture_loader.textures:
+            self.texture_loader.bind("energy_player")
+            glColor4f(1, 1, 1, 1)
+            
+            px = margin
+            py = margin
+            pw = int(self.player.energy * scale)  # Width based on energy
+            
+            glBegin(GL_QUADS)
+            glTexCoord2f(0, 1); glVertex2i(px, py)
+            glTexCoord2f(self.player.energy / 100.0, 1); glVertex2i(px + pw, py)
+            glTexCoord2f(self.player.energy / 100.0, 0); glVertex2i(px + pw, py + bar_h)
+            glTexCoord2f(0, 0); glVertex2i(px, py + bar_h)
+            glEnd()
         
         # Computer energy (bottom right)
-        cx = SCREEN_W - bar_w - margin
-        cy = SCREEN_H - bar_h - margin
-        glColor3f(0.2, 0.2, 0.2)
-        glBegin(GL_QUADS)
-        glVertex2i(cx, cy); glVertex2i(cx + bar_w, cy)
-        glVertex2i(cx + bar_w, cy + bar_h); glVertex2i(cx, cy + bar_h)
-        glEnd()
+        if "energy_computer" in self.texture_loader.textures:
+            self.texture_loader.bind("energy_computer")
+            glColor4f(1, 1, 1, 1)
+            
+            cx = SCREEN_W - bar_w - margin
+            cy = margin
+            cw = int(self.computer.energy * scale)  # Width based on energy
+            
+            glBegin(GL_QUADS)
+            glTexCoord2f(0, 1); glVertex2i(cx, cy)
+            glTexCoord2f(self.computer.energy / 100.0, 1); glVertex2i(cx + cw, cy)
+            glTexCoord2f(self.computer.energy / 100.0, 0); glVertex2i(cx + cw, cy + bar_h)
+            glTexCoord2f(0, 0); glVertex2i(cx, cy + bar_h)
+            glEnd()
         
-        cw = int(bar_w * (self.computer.energy / self.computer.max_energy))
-        glColor3f(0.8, 0, 0)
-        glBegin(GL_QUADS)
-        glVertex2i(cx, cy); glVertex2i(cx + cw, cy)
-        glVertex2i(cx + cw, cy + bar_h); glVertex2i(cx, cy + bar_h)
-        glEnd()
-        
-        glColor3f(1, 1, 1)
-        glBegin(GL_LINE_LOOP)
-        glVertex2i(cx, cy); glVertex2i(cx + bar_w, cy)
-        glVertex2i(cx + bar_w, cy + bar_h); glVertex2i(cx, cy + bar_h)
-        glEnd()
-        
-        glEnable(GL_TEXTURE_2D)
         glEnable(GL_DEPTH_TEST)
         glMatrixMode(GL_PROJECTION)
         glPopMatrix()
