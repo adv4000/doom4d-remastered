@@ -911,7 +911,7 @@ class Doom4D:
         glPopMatrix()
         
     def draw_intro(self):
-        """Draw intro animation with progressive reveal and zoom (from original VB6)"""
+        """Draw intro animation - 4 quadrants + logo zoom (from original VB6)"""
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         
         glMatrixMode(GL_PROJECTION)
@@ -939,25 +939,26 @@ class Doom4D:
             self.texture_loader.bind(texture_name)
             if self.texture_loader.get(texture_name):
                 glColor3f(1, 1, 1)
-                glEnable(GL_TEXTURE_2D)
                 
-                # Render based on stage (quadrants)
+                # Stage 1: Top-left quadrant
                 if self.intro_stage >= 1:
                     glBegin(GL_QUADS)
                     glTexCoord2f(0, 0.5); glVertex2i(0, SCREEN_H)
                     glTexCoord2f(0.5, 0.5); glVertex2i(SCREEN_W//2, SCREEN_H)
-                    glTexCoord2f(0.5, 1); glVertex2i(SCREEN_W//2, 0)
-                    glTexCoord2f(0, 1); glVertex2i(0, 0)
+                    glTexCoord2f(0.5, 1); glVertex2i(SCREEN_W//2, SCREEN_H//2)
+                    glTexCoord2f(0, 1); glVertex2i(0, SCREEN_H//2)
                     glEnd()
-                    
+                
+                # Stage 2: Top-right quadrant
                 if self.intro_stage >= 2:
                     glBegin(GL_QUADS)
                     glTexCoord2f(0.5, 0.5); glVertex2i(SCREEN_W//2, SCREEN_H)
                     glTexCoord2f(1, 0.5); glVertex2i(SCREEN_W, SCREEN_H)
-                    glTexCoord2f(1, 1); glVertex2i(SCREEN_W, 0)
-                    glTexCoord2f(0.5, 1); glVertex2i(SCREEN_W//2, 0)
+                    glTexCoord2f(1, 1); glVertex2i(SCREEN_W, SCREEN_H//2)
+                    glTexCoord2f(0.5, 1); glVertex2i(SCREEN_W//2, SCREEN_H//2)
                     glEnd()
-                    
+                
+                # Stage 3: Bottom-left quadrant
                 if self.intro_stage >= 3:
                     glBegin(GL_QUADS)
                     glTexCoord2f(0, 0); glVertex2i(0, SCREEN_H//2)
@@ -965,7 +966,8 @@ class Doom4D:
                     glTexCoord2f(0.5, 0.5); glVertex2i(SCREEN_W//2, 0)
                     glTexCoord2f(0, 0.5); glVertex2i(0, 0)
                     glEnd()
-                    
+                
+                # Stage 4: Bottom-right quadrant
                 if self.intro_stage >= 4:
                     glBegin(GL_QUADS)
                     glTexCoord2f(0.5, 0); glVertex2i(SCREEN_W//2, SCREEN_H//2)
@@ -987,20 +989,23 @@ class Doom4D:
                 glTexCoord2f(0, 1); glVertex2i(0, 0)
                 glEnd()
             
-            # Logo overlay with zoom effect
+            # Logo overlay with zoom effect (from stage 5 onwards)
             if "logo" in self.texture_loader.textures:
                 self.texture_loader.bind("logo")
                 glColor4f(1, 1, 1, 1)
                 
-                # Zoom effect: starts large and zooms in
-                margin = min(80, (self.intro_stage - 5) * 10)
+                # Zoom starts at 80 and decreases (zoom in effect)
+                # x = x + 0.3 in original loop, runs until x > 80
+                zoom_step = (self.intro_stage - 5) * 10  # Increment per stage
+                margin = max(0, 80 - zoom_step)  # Decrease from 80 to 0
                 
-                glBegin(GL_QUADS)
-                glTexCoord2f(0, 0); glVertex2i(margin, SCREEN_H - margin)
-                glTexCoord2f(1, 0); glVertex2i(SCREEN_W - margin, SCREEN_H - margin)
-                glTexCoord2f(1, 1); glVertex2i(SCREEN_W - margin, margin)
-                glTexCoord2f(0, 1); glVertex2i(margin, margin)
-                glEnd()
+                if margin > 0:
+                    glBegin(GL_QUADS)
+                    glTexCoord2f(0, 0); glVertex2i(margin, SCREEN_H - margin)
+                    glTexCoord2f(1, 0); glVertex2i(SCREEN_W - margin, SCREEN_H - margin)
+                    glTexCoord2f(1, 1); glVertex2i(SCREEN_W - margin, margin)
+                    glTexCoord2f(0, 1); glVertex2i(margin, margin)
+                    glEnd()
         
         glEnable(GL_DEPTH_TEST)
         glMatrixMode(GL_PROJECTION)
@@ -1191,17 +1196,32 @@ class Doom4D:
             glDisable(GL_FOG)
         
     def update_intro(self, dt: int):
-        """Update intro animation"""
+        """Update intro animation - 3000ms per stage (from original VB6)"""
         if not self.intro_running:
             return
             
         self.intro_timer += dt
         
-        # Progress through stages (500ms per quadrant)
-        if self.intro_timer > 100:  # 100ms per stage (faster animation)
+        # 3000ms per quadrant (TimerIntro.Interval = 3000 in VB6)
+        if self.intro_timer > 3000:
             self.intro_timer = 0
             self.intro_stage += 1
-            if self.intro_stage > 12:  # End intro after stage 12
+            
+            # Play intro sounds (from original)
+            if self.intro_stage == 1:
+                self.sound.play_sound("intro1")
+            elif self.intro_stage == 2:
+                self.sound.play_sound("intro2")
+            elif self.intro_stage == 3:
+                self.sound.play_sound("intro3")
+            elif self.intro_stage == 4:
+                self.sound.play_sound("intro4")
+            elif self.intro_stage == 5:
+                self.sound.play_sound("intro0")
+                # Zoom animation runs from stage 5-16
+                
+            # End intro after zoom completes
+            if self.intro_stage > 16:
                 self.intro_running = False
         
     def render(self):
