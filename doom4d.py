@@ -502,7 +502,7 @@ class Doom4D:
         """Draw sky (NEBO from original) at Y=50"""
         texture_name = "sky_earth" if self.game_type == 1 else "sky_death"
         self.texture_loader.bind(texture_name)
-        glColor4f(1, 1, 1, 1)}
+        glColor4f(1, 1, 1, 1)
         
         z = self.zoom
         
