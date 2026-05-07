@@ -826,41 +826,80 @@ class Doom4D:
         glDisable(GL_DEPTH_TEST)
         glEnable(GL_TEXTURE_2D)
         
-        bar_w = 200  # Width on screen
-        bar_h = 40   # Height on screen
+        bar_w = 200
+        bar_h = 40
         margin = 30
-        scale = bar_w / 100.0  # Scale from 100px texture width
         
         # Player energy (bottom left)
+        px = margin
+        py = SCREEN_H - bar_h - margin
+        pw = int(bar_w * self.player.energy / 100.0)
+        
+        # Draw energy bar background
+        glDisable(GL_TEXTURE_2D)
+        glColor4f(0.3, 0.3, 0.3, 1.0)
+        glBegin(GL_QUADS)
+        glVertex2i(px, py)
+        glVertex2i(px + bar_w, py)
+        glVertex2i(px + bar_w, py + bar_h)
+        glVertex2i(px, py + bar_h)
+        glEnd()
+        
+        # Draw player energy with texture
         if "energy_player" in self.texture_loader.textures:
+            glEnable(GL_TEXTURE_2D)
             self.texture_loader.bind("energy_player")
             glColor4f(1, 1, 1, 1)
-            
-            px = margin
-            py = SCREEN_H - bar_h - margin
-            pw = int(self.player.energy * scale)  # Width based on energy
-            
             glBegin(GL_QUADS)
             glTexCoord2f(0, 0); glVertex2i(px, py)
-            glTexCoord2f(self.player.energy / 100.0, 0); glVertex2i(px + pw, py)
-            glTexCoord2f(self.player.energy / 100.0, 1); glVertex2i(px + pw, py + bar_h)
+            glTexCoord2f(1, 0); glVertex2i(px + pw, py)
+            glTexCoord2f(1, 1); glVertex2i(px + pw, py + bar_h)
             glTexCoord2f(0, 1); glVertex2i(px, py + bar_h)
+            glEnd()
+        else:
+            # Fallback - green bar
+            glColor4f(0, 0.8, 0, 1.0)
+            glBegin(GL_QUADS)
+            glVertex2i(px, py)
+            glVertex2i(px + pw, py)
+            glVertex2i(px + pw, py + bar_h)
+            glVertex2i(px, py + bar_h)
             glEnd()
         
         # Computer energy (bottom right)
+        cx = SCREEN_W - bar_w - margin
+        cy = SCREEN_H - bar_h - margin
+        cw = int(bar_w * self.computer.energy / 100.0)
+        
+        # Draw energy bar background
+        glDisable(GL_TEXTURE_2D)
+        glColor4f(0.3, 0.3, 0.3, 1.0)
+        glBegin(GL_QUADS)
+        glVertex2i(cx, cy)
+        glVertex2i(cx + bar_w, cy)
+        glVertex2i(cx + bar_w, cy + bar_h)
+        glVertex2i(cx, cy + bar_h)
+        glEnd()
+        
+        # Draw computer energy with texture
         if "energy_computer" in self.texture_loader.textures:
+            glEnable(GL_TEXTURE_2D)
             self.texture_loader.bind("energy_computer")
             glColor4f(1, 1, 1, 1)
-            
-            cx = SCREEN_W - bar_w - margin
-            cy = SCREEN_H - bar_h - margin
-            cw = int(self.computer.energy * scale)  # Width based on energy
-            
             glBegin(GL_QUADS)
             glTexCoord2f(0, 0); glVertex2i(cx, cy)
-            glTexCoord2f(self.computer.energy / 100.0, 0); glVertex2i(cx + cw, cy)
-            glTexCoord2f(self.computer.energy / 100.0, 1); glVertex2i(cx + cw, cy + bar_h)
+            glTexCoord2f(1, 0); glVertex2i(cx + cw, cy)
+            glTexCoord2f(1, 1); glVertex2i(cx + cw, cy + bar_h)
             glTexCoord2f(0, 1); glVertex2i(cx, cy + bar_h)
+            glEnd()
+        else:
+            # Fallback - red bar
+            glColor4f(0.8, 0, 0, 1.0)
+            glBegin(GL_QUADS)
+            glVertex2i(cx, cy)
+            glVertex2i(cx + cw, cy)
+            glVertex2i(cx + cw, cy + bar_h)
+            glVertex2i(cx, cy + bar_h)
             glEnd()
         
         glEnable(GL_DEPTH_TEST)
