@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-DOOM 4D - Python Remastered with OpenGL
+DOOM 4D - Python Remastered with PyOpenGL
 Originally created by Denis Astahov (ADV-IT) in 2004
 Visual Basic 6 + DirectX 7 -> Python + Pygame + PyOpenGL
 
 Bachelor Degree Project - Score: 95/100
+Repository: https://github.com/adv4000/doom4d-remastered
 """
 
 import pygame
@@ -15,38 +16,47 @@ from OpenGL.GLU import *
 import math
 import random
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
-# ============== CONSTANTS (from original VB6) ==============
-COMPSTEP = 100
-TREE_MAX = 40
-FIRESMOKE = 40
+# ==================== CONSTANTS (from original VB6) ====================
+COMPSTEP = 100       # Number of Computer's STEPS in one Direction Movement
+TREE_MAX = 40        # Counter of Trees -1 My FOREST :)
+FIRESMOKE = 40       # Counter of maximum Fire and Smoke Animations -1
+
 PI = 3.14159265358979
-POLE = 100  # Arena size from -100 to 100 (from original!)
+Radians = PI / 180.0
+POLE = 200           # Size of Area from Center to WALLs
 
 SCREEN_W = 1920
 SCREEN_H = 1080
 TITLE = "DOOM 4D - Remastered (c) 2004 Denis Astahov"
 
 
+# ==================== TEXTURE LOADER ====================
 class TextureLoader:
+    """Load and manage OpenGL textures"""
+    
     def __init__(self, base_path: Path):
         self.base_path = base_path
         self.textures: Dict[str, int] = {}
         
     def load_texture(self, name: str, relative_path: str) -> bool:
+        """Load texture from file"""
         full_path = self.base_path / relative_path
         
-        for ext in ['', '.bmp', '.BMP', '.jpg', '.JPG', '.jpeg', '.JPEG', '.png']:
+        # Try different extensions
+        for ext in ['', '.bmp', '.BMP', '.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG']:
             test_path = Path(str(full_path) + ext) if ext else full_path
             if test_path.exists():
                 full_path = test_path
                 break
         else:
+            print(f"Texture not found: {relative_path}")
             return False
             
         try:
             surface = pygame.image.load(str(full_path))
+            # Flip for OpenGL coordinate system
             surface = pygame.transform.flip(surface, False, True)
             data = pygame.image.tostring(surface, "RGBA", True)
             width, height = surface.get_size()
@@ -67,16 +77,21 @@ class TextureLoader:
             return False
             
     def get(self, name: str) -> int:
+        """Get texture ID"""
         return self.textures.get(name, 0)
         
     def bind(self, name: str):
+        """Bind texture for rendering"""
         if name in self.textures:
             glBindTexture(GL_TEXTURE_2D, self.textures[name])
         else:
             glBindTexture(GL_TEXTURE_2D, 0)
 
 
+# ==================== SOUND MANAGER ====================
 class SoundManager:
+    """Handle sound and music playback"""
+    
     def __init__(self, base_path: Path):
         self.base_path = base_path
         self.sounds: Dict[str, pygame.mixer.Sound] = {}
@@ -84,8 +99,9 @@ class SoundManager:
         self.current_music = None
         
     def load_sound(self, name: str, relative_path: str) -> bool:
+        """Load sound effect"""
         full_path = self.base_path / relative_path
-        for ext in ['', '.wav', '.WAV']:
+        for ext in ['', '.wav', '.WAV', '.mp3', '.MP3']:
             test_path = Path(str(full_path) + ext) if ext else full_path
             if test_path.exists():
                 try:
@@ -93,10 +109,11 @@ class SoundManager:
                     print(f"Loaded sound: {name}")
                     return True
                 except Exception as e:
-                    print(f"Error sound {relative_path}: {e}")
+                    print(f"Error loading sound {relative_path}: {e}")
         return False
         
     def load_music_list(self, music_dir: str):
+        """Load all music tracks"""
         music_path = self.base_path / music_dir
         if music_path.exists():
             for f in sorted(music_path.glob("Music*.wav")):
@@ -110,10 +127,12 @@ class SoundManager:
                         print(f"Could not load music {f.name}: {e}")
                     
     def play_sound(self, name: str):
+        """Play sound effect"""
         if name in self.sounds:
             self.sounds[name].play()
             
     def play_music(self, num: int):
+        """Play music track on loop"""
         if num in self.music_sounds:
             try:
                 if self.current_music and self.current_music in self.music_sounds:
@@ -125,7 +144,10 @@ class SoundManager:
                 print(f"Error playing music: {e}")
 
 
+# ==================== SPRITE 3D ====================
 class Sprite3D:
+    """Cross-shaped 3D sprite (4 faces in + pattern)"""
+    
     def __init__(self, x: float, z: float, height: float, width: float):
         self.x = x
         self.z = z
@@ -133,30 +155,44 @@ class Sprite3D:
         self.width = width
 
 
+# ==================== PLAYER ====================
 class Player:
+    """Player/Camera controller"""
+    
     def __init__(self):
+        # Camera position (VecCamLok in VB6)
         self.x = 0.0
-        self.y = 10.0
-        self.z = -80.0  # Start back
-        self.angle = 0.0
+        self.y = 6.0      # Constant height
+        self.z = -12.0    # Start position
         
-        self.step = 1.0
-        self.rotate_speed = 0.03
+        # View parameters
+        self.angle = 0.0  # alfa in VB6 (angle in radians)
         
+        # Movement parameters
+        self.step = 0.5001
+        self.rotate_speed = 0.8 * Radians  # delta in VB6
+        
+        # Game stats
         self.energy = 100
         self.max_energy = 100
         self.wins = 0
         
+        # Shooting
         self.fire_now = False
         self.last_shoot = False
 
 
+# ==================== COMPUTER ====================
 class Computer:
+    """Computer enemy cube"""
+    
     def __init__(self):
         self.x = 0.0
         self.y = 4.0
         self.z = 0.0
         
+        self.target_x = 0.0
+        self.target_z = 0.0
         self.dx = 0.0
         self.dz = 0.0
         self.step_count = COMPSTEP
@@ -164,18 +200,21 @@ class Computer:
         self.energy = 100
         self.max_energy = 100
         
+        # Rotation angles
         self.rotate_x = 0.0
         self.rotate_y = 0.0
         self.rotate_z = 0.0
         
     def spawn_target(self):
-        new_x = random.randint(-85, 85)
-        new_z = random.randint(-85, 85)
-        self.dx = (new_x - self.x) / COMPSTEP
-        self.dz = (new_z - self.z) / COMPSTEP
+        """Set new random target position"""
+        self.target_x = random.randint(-85, 85)
+        self.target_z = random.randint(-85, 85)
+        self.dx = (self.target_x - self.x) / COMPSTEP
+        self.dz = (self.target_z - self.z) / COMPSTEP
         self.step_count = 0
         
     def update(self):
+        """Update computer position"""
         if self.step_count >= COMPSTEP:
             self.spawn_target()
             
@@ -183,14 +222,20 @@ class Computer:
         self.z += self.dz
         self.step_count += 1
         
+        # Keep in bounds
         self.x = max(-90, min(90, self.x))
         self.z = max(-90, min(90, self.z))
         
+        # Update rotation
         self.rotate_x = (self.rotate_x + 1) % 360
-        self.rotate_y = (self.rotate_y + 5) % 360
+        self.rotate_y = (self.rotate_y + 4) % 360
+        self.rotate_z = (self.rotate_z + 1) % 360
 
 
+# ==================== MAIN GAME ====================
 class Doom4D:
+    """Main game class"""
+    
     def __init__(self):
         pygame.init()
         pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
@@ -199,32 +244,44 @@ class Doom4D:
         pygame.display.set_caption(TITLE)
         
         self.running = True
-        self.game_type = 1
+        self.game_type = 1  # 1=Earth, 2=Hell
         self.in_menu = True
         self.game_over = False
         
-        # Intro animation
+        # Intro animation state
         self.intro_stage = 0
         self.intro_timer = 0
-        self.intro_zoom = 100
         self.intro_running = True
         
+        # Game objects
         self.player = Player()
         self.computer = Computer()
         
+        # Sprites
         self.trees1: List[Sprite3D] = []
         self.trees2: List[Sprite3D] = []
         self.smokes: List[Sprite3D] = []
         self.fires: List[Sprite3D] = []
         
+        # Time tracking
         self.clock = pygame.time.Clock()
         self.play_time = 0
         self.time_ms = 0
         
-        self.nizz_angle = 0.0  # Rotating floor underneath
+        # Zoom factor (from original: zzz = POLE / 100)
+        self.zoom = POLE / 100  # = 2.0
         
+        # Rotating floor (NIZZ) angle
+        self.nizz_angle = 0.0
+        
+        # Fog control
+        self.fog_enabled = False
+        self.fog_color = (1.0, 1.0, 1.0, 1.0)  # White
+        
+        # Initialize OpenGL
         self.init_opengl()
         
+        # Load resources
         self.base_path = Path(__file__).parent
         self.texture_loader = TextureLoader(self.base_path / "Image")
         self.sound = SoundManager(self.base_path)
@@ -233,54 +290,65 @@ class Doom4D:
         self.load_sounds()
         
     def init_opengl(self):
+        """Initialize OpenGL settings"""
         glEnable(GL_DEPTH_TEST)
         glDepthFunc(GL_LESS)
         glEnable(GL_TEXTURE_2D)
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         
+        # Perspective projection
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
         gluPerspective(90, SCREEN_W / SCREEN_H, 1.0, 2000.0)
         
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
-        glClearColor(0.0, 0.0, 0.0, 1.0)
+        
+        # Background color
+        glClearColor(0.0, 0.0, 0.2, 1.0)
         
     def load_all_textures(self):
-        """Load ALL textures from both areas"""
+        """Load all textures from both Earth and Death areas"""
         print("\n=== Loading ALL textures ===")
         
-        # Load from both Earth and Death
-        area = "Earth" if self.game_type == 1 else "Death"
+        # Ground textures
+        self.texture_loader.load_texture("ground_earth", "Earth/Ground")
+        self.texture_loader.load_texture("ground_death", "Death/Ground")
         
-        # Current area
-        self.texture_loader.load_texture("ground", f"{area}/Ground")
-        self.texture_loader.load_texture("wall1", f"{area}/Stena1")
-        self.texture_loader.load_texture("wall2", f"{area}/Stena2")
+        # Wall textures
+        self.texture_loader.load_texture("wall1_earth", "Earth/Stena1")
+        self.texture_loader.load_texture("wall2_earth", "Earth/Stena2")
+        self.texture_loader.load_texture("wall1_death", "Death/Stena1")
+        self.texture_loader.load_texture("wall2_death", "Death/Stena2")
         
-        # Sky from Earth
+        # Sky (from Earth folder)
         self.texture_loader.load_texture("sky", "Earth/Nebo")
         
-        # ALL tree textures
+        # Trees - Tree1 from Earth, Tree2 from Death
         self.texture_loader.load_texture("tree1", "Earth/Tree1")
         self.texture_loader.load_texture("tree2", "Death/Tree2")
         
-        # ALL fire/smoke textures
+        # Fire and Smoke - Smoke from Earth, Fire from Death
         self.texture_loader.load_texture("smoke", "Earth/Smoke")
         self.texture_loader.load_texture("fire", "Death/Faire")
         
-        # Nizz (floor underneath)
-        self.texture_loader.load_texture("nizz", f"{area}/Nizz")
+        # NIZZ (rotating floor underneath)
+        self.texture_loader.load_texture("nizz_earth", "Earth/Nizz")
+        self.texture_loader.load_texture("nizz_death", "Death/Nizz")
         
-        # Computer
+        # Computer cube
         self.texture_loader.load_texture("computer", "CompKub")
         
         # Intro/Logo
-        self.texture_loader.load_texture("intro", f"{area}/Intro1")
+        self.texture_loader.load_texture("intro_earth", "Earth/Intro1")
+        self.texture_loader.load_texture("intro_death", "Death/Intro1")
         self.texture_loader.load_texture("logo", "IntroD4D")
         
+        print(f"\nTotal textures loaded: {len(self.texture_loader.textures)}")
+        
     def load_sounds(self):
+        """Load all sound effects"""
         print("\n=== Loading sounds ===")
         self.sound.load_sound("select", "Sound/Select")
         self.sound.load_sound("start", "Sound/Start")
@@ -289,12 +357,16 @@ class Doom4D:
         self.sound.load_sound("dead", "Sound/Dead")
         self.sound.load_sound("killcomp", "Sound/Killcomp")
         self.sound.load_sound("teleport", "Sound/Teleport")
+        
+        # Intro sounds
         for i in range(5):
             self.sound.load_sound(f"intro{i}", f"Sound/Intro{i}")
+            
+        # Music
         self.sound.load_music_list("Music")
         
     def init_geometry(self):
-        """Initialize trees and fire/smoke - ORIGINAL COORDINATES"""
+        """Initialize trees and fire/smoke at random positions (from original VB6)"""
         self.trees1 = []
         self.trees2 = []
         self.smokes = []
@@ -302,27 +374,35 @@ class Doom4D:
         
         random.seed()
         
-        # Trees at -95 to 95 (from original!)
+        # Create trees (TREE_MAX = 40)
         for i in range(TREE_MAX):
+            # Tree1: height=20, width=3
             x = random.randint(-95, 95)
             z = random.randint(-95, 95)
-            if abs(x) > 5 or abs(z) > 5:  # Avoid center
-                self.trees1.append(Sprite3D(x, z, height=20, width=3))
+            self.trees1.append(Sprite3D(x, z, height=20, width=3))
             
+            # Tree2: height=12, width=5
             x = random.randint(-95, 95)
             z = random.randint(-95, 95)
-            if abs(x) > 5 or abs(z) > 5:
-                self.trees2.append(Sprite3D(x, z, height=12, width=5))
+            self.trees2.append(Sprite3D(x, z, height=12, width=5))
             
-        # Fire/Smoke at -98 to 98
+        # Create smoke and fire (FIRESMOKE = 40)
         for i in range(FIRESMOKE):
+            # Smoke: height=3, width=1
             x = random.randint(-98, 98)
             z = random.randint(-98, 98)
-            if abs(x) > 10 or abs(z) > 10:
-                self.smokes.append(Sprite3D(x, z, height=3, width=1))
-                self.fires.append(Sprite3D(x, z, height=3, width=1))
+            self.smokes.append(Sprite3D(x, z, height=3, width=1))
             
+            # Fire: height=3, width=1
+            x = random.randint(-98, 98)
+            z = random.randint(-98, 98)
+            self.fires.append(Sprite3D(x, z, height=3, width=1))
+            
+        print(f"Created {len(self.trees1)} trees1, {len(self.trees2)} trees2")
+        print(f"Created {len(self.smokes)} smoke, {len(self.fires)} fire")
+        
     def start_game(self, game_type: int):
+        """Start a new game"""
         self.game_type = game_type
         self.player = Player()
         self.computer = Computer()
@@ -332,228 +412,256 @@ class Doom4D:
         self.in_menu = False
         self.intro_running = False
         
-        # Reload area-specific textures
-        area = "Earth" if self.game_type == 1 else "Death"
-        self.texture_loader.load_texture("ground", f"{area}/Ground")
-        self.texture_loader.load_texture("wall1", f"{area}/Stena1")
-        self.texture_loader.load_texture("wall2", f"{area}/Stena2")
-        self.texture_loader.load_texture("nizz", f"{area}/Nizz")
-        self.texture_loader.load_texture("intro", f"{area}/Intro1")
-        
-        self.init_geometry()
-        
+        # Set background color based on area
         if self.game_type == 1:
-            glClearColor(0.5, 0.7, 1.0, 1.0)
+            glClearColor(0.0, 0.0, 0.4, 1.0)  # Blue for Earth
         else:
-            glClearColor(0.3, 0.1, 0.1, 1.0)
+            glClearColor(0.2, 0.0, 0.0, 1.0)  # Red for Hell
             
+        self.init_geometry()
         self.sound.play_sound("start")
         print(f"\nGame started! Area: {'Earth' if game_type == 1 else 'Hell'}")
         
     def draw_ground(self):
-        """Draw ground plane"""
-        self.texture_loader.bind("ground")
+        """Draw ground plane (-100 to 100)"""
+        texture_name = "ground_earth" if self.game_type == 1 else "ground_death"
+        self.texture_loader.bind(texture_name)
         glColor4f(1, 1, 1, 1)
         
-        size = POLE  # -100 to 100
+        # Apply zoom
+        z = self.zoom
         
-        glBegin(GL_QUADS)
-        glTexCoord2f(0, 0); glVertex3f(-size, 0, -size)
-        glTexCoord2f(4, 0); glVertex3f(size, 0, -size)
-        glTexCoord2f(4, 4); glVertex3f(size, 0, size)
-        glTexCoord2f(0, 4); glVertex3f(-size, 0, size)
+        glBegin(GL_TRIANGLE_STRIP)
+        glTexCoord2f(0, 0); glVertex3f(-100 * z, 0, 100 * z)
+        glTexCoord2f(1, 0); glVertex3f(100 * z, 0, 100 * z)
+        glTexCoord2f(0, 1); glVertex3f(-100 * z, 0, -100 * z)
+        glTexCoord2f(1, 1); glVertex3f(100 * z, 0, -100 * z)
         glEnd()
         
     def draw_nizz(self):
         """Draw rotating floor underneath (NIZZ from original)"""
-        self.texture_loader.bind("nizz")
-        glColor4f(1, 1, 1, 0.8)
+        texture_name = "nizz_earth" if self.game_type == 1 else "nizz_death"
+        self.texture_loader.bind(texture_name)
+        glColor4f(1, 1, 1, 1)
         
         glPushMatrix()
-        glTranslatef(0, -10, 0)  # Below ground
-        glRotatef(self.nizz_angle, 0, 1, 0)  # Rotate around Y
         
-        size = 500  # Large area
+        # Position at Y = -10, scaled by zoom
+        z = self.zoom
+        glTranslatef(0, -10 * z, 0)
+        glRotatef(self.nizz_angle, 0, 1, 0)
         
-        glBegin(GL_QUADS)
-        glTexCoord2f(0, 0); glVertex3f(-size, 0, -size)
-        glTexCoord2f(5, 0); glVertex3f(size, 0, -size)
-        glTexCoord2f(5, 5); glVertex3f(size, 0, size)
-        glTexCoord2f(0, 5); glVertex3f(-size, 0, size)
+        glBegin(GL_TRIANGLE_STRIP)
+        glTexCoord2f(0, 0); glVertex3f(-500 * z, 0, 500 * z)
+        glTexCoord2f(1, 0); glVertex3f(500 * z, 0, 500 * z)
+        glTexCoord2f(0, 1); glVertex3f(-500 * z, 0, -500 * z)
+        glTexCoord2f(1, 1); glVertex3f(500 * z, 0, -500 * z)
         glEnd()
         
         glPopMatrix()
         
     def draw_sky(self):
+        """Draw sky (NEBO from original) at Y=50"""
         self.texture_loader.bind("sky")
         glColor4f(1, 1, 1, 1)
         
-        dist = 400
-        height = 200
+        z = self.zoom
         
-        glBegin(GL_QUADS)
-        # Front
-        glTexCoord2f(0, 1); glVertex3f(-dist, 0, dist)
-        glTexCoord2f(1, 1); glVertex3f(dist, 0, dist)
-        glTexCoord2f(1, 0); glVertex3f(dist, height, dist)
-        glTexCoord2f(0, 0); glVertex3f(-dist, height, dist)
-        # Back
-        glTexCoord2f(0, 1); glVertex3f(dist, 0, -dist)
-        glTexCoord2f(1, 1); glVertex3f(-dist, 0, -dist)
-        glTexCoord2f(1, 0); glVertex3f(-dist, height, -dist)
-        glTexCoord2f(0, 0); glVertex3f(dist, height, -dist)
-        # Left
-        glTexCoord2f(0, 1); glVertex3f(-dist, 0, -dist)
-        glTexCoord2f(1, 1); glVertex3f(-dist, 0, dist)
-        glTexCoord2f(1, 0); glVertex3f(-dist, height, dist)
-        glTexCoord2f(0, 0); glVertex3f(-dist, height, -dist)
-        # Right
-        glTexCoord2f(0, 1); glVertex3f(dist, 0, dist)
-        glTexCoord2f(1, 1); glVertex3f(dist, 0, -dist)
-        glTexCoord2f(1, 0); glVertex3f(dist, height, -dist)
-        glTexCoord2f(0, 0); glVertex3f(dist, height, dist)
+        glBegin(GL_TRIANGLE_STRIP)
+        glTexCoord2f(0, 0); glVertex3f(250 * z, 50 * z, 250 * z)
+        glTexCoord2f(1, 0); glVertex3f(-250 * z, 50 * z, 250 * z)
+        glTexCoord2f(0, 1); glVertex3f(250 * z, 50 * z, -250 * z)
+        glTexCoord2f(1, 1); glVertex3f(-250 * z, 50 * z, -250 * z)
         glEnd()
         
     def draw_walls(self):
-        wall_height = 60
-        size = POLE
+        """Draw arena walls (from original VB6)"""
+        z = self.zoom
+        size = 20  # Size of one wall segment
+        wall_height = 30
         
-        glColor4f(1, 1, 1, 1)
+        wall1 = "wall1_earth" if self.game_type == 1 else "wall1_death"
+        wall2 = "wall2_earth" if self.game_type == 1 else "wall2_death"
         
         # Back wall (+Z)
-        self.texture_loader.bind("wall1")
-        glBegin(GL_QUADS)
+        self.texture_loader.bind(wall1)
+        glBegin(GL_TRIANGLE_STRIP)
         for i in range(10):
-            x1 = -size + i * 20
-            x2 = -size + (i+1) * 20
-            glTexCoord2f(0, 1); glVertex3f(x1, 0, size)
-            glTexCoord2f(1, 1); glVertex3f(x2, 0, size)
-            glTexCoord2f(1, 0); glVertex3f(x2, wall_height, size)
-            glTexCoord2f(0, 0); glVertex3f(x1, wall_height, size)
+            x1 = (-100 + i * size) * z
+            x2 = (-80 + i * size) * z
+            glTexCoord2f(0, 0); glVertex3f(x1, wall_height * z, 100 * z)
+            glTexCoord2f(1, 0); glVertex3f(x2, wall_height * z, 100 * z)
+            glTexCoord2f(0, 1); glVertex3f(x1, 0, 100 * z)
+            glTexCoord2f(1, 1); glVertex3f(x2, 0, 100 * z)
         glEnd()
         
         # Front wall (-Z)
-        glBegin(GL_QUADS)
+        glBegin(GL_TRIANGLE_STRIP)
         for i in range(10):
-            x1 = -size + i * 20
-            x2 = -size + (i+1) * 20
-            glTexCoord2f(0, 1); glVertex3f(x2, 0, -size)
-            glTexCoord2f(1, 1); glVertex3f(x1, 0, -size)
-            glTexCoord2f(1, 0); glVertex3f(x1, wall_height, -size)
-            glTexCoord2f(0, 0); glVertex3f(x2, wall_height, -size)
-        glEnd()
-        
-        # Left wall (-X)
-        self.texture_loader.bind("wall2")
-        glBegin(GL_QUADS)
-        for i in range(10):
-            z1 = -size + i * 20
-            z2 = -size + (i+1) * 20
-            glTexCoord2f(0, 1); glVertex3f(-size, 0, z1)
-            glTexCoord2f(1, 1); glVertex3f(-size, 0, z2)
-            glTexCoord2f(1, 0); glVertex3f(-size, wall_height, z2)
-            glTexCoord2f(0, 0); glVertex3f(-size, wall_height, z1)
+            x1 = (-80 + i * size) * z
+            x2 = (-100 + i * size) * z
+            glTexCoord2f(0, 0); glVertex3f(x1, wall_height * z, -100 * z)
+            glTexCoord2f(1, 0); glVertex3f(x2, wall_height * z, -100 * z)
+            glTexCoord2f(0, 1); glVertex3f(x1, 0, -100 * z)
+            glTexCoord2f(1, 1); glVertex3f(x2, 0, -100 * z)
         glEnd()
         
         # Right wall (+X)
-        glBegin(GL_QUADS)
+        self.texture_loader.bind(wall2)
+        glBegin(GL_TRIANGLE_STRIP)
         for i in range(10):
-            z1 = -size + i * 20
-            z2 = -size + (i+1) * 20
-            glTexCoord2f(0, 1); glVertex3f(size, 0, z2)
-            glTexCoord2f(1, 1); glVertex3f(size, 0, z1)
-            glTexCoord2f(1, 0); glVertex3f(size, wall_height, z1)
-            glTexCoord2f(0, 0); glVertex3f(size, wall_height, z2)
+            z1 = (-80 + i * size) * z
+            z2 = (-100 + i * size) * z
+            glTexCoord2f(0, 0); glVertex3f(100 * z, wall_height * z, z1)
+            glTexCoord2f(1, 0); glVertex3f(100 * z, wall_height * z, z2)
+            glTexCoord2f(0, 1); glVertex3f(100 * z, 0, z1)
+            glTexCoord2f(1, 1); glVertex3f(100 * z, 0, z2)
         glEnd()
         
-    def draw_sprite_billboard(self, sprite: Sprite3D):
-        dx = self.player.x - sprite.x
-        dz = self.player.z - sprite.z
-        angle = math.atan2(dx, dz)
+        # Left wall (-X)
+        glBegin(GL_TRIANGLE_STRIP)
+        for i in range(10):
+            z1 = (-100 + i * size) * z
+            z2 = (-80 + i * size) * z
+            glTexCoord2f(0, 0); glVertex3f(-100 * z, wall_height * z, z1)
+            glTexCoord2f(1, 0); glVertex3f(-100 * z, wall_height * z, z2)
+            glTexCoord2f(0, 1); glVertex3f(-100 * z, 0, z1)
+            glTexCoord2f(1, 1); glVertex3f(-100 * z, 0, z2)
+        glEnd()
         
-        sx = sprite.width * math.sin(angle)
-        sz = sprite.width * math.cos(angle)
+    def draw_sprite_3d(self, sprite: Sprite3D):
+        """Draw cross-shaped 3D sprite (4 faces in + pattern, from original VB6)"""
+        x = sprite.x * self.zoom
+        z = sprite.z * self.zoom
+        h = sprite.height * self.zoom
+        w = sprite.width * self.zoom
         
-        glBegin(GL_QUADS)
-        glTexCoord2f(0, 1); glVertex3f(sprite.x - sx, 0, sprite.z - sz)
-        glTexCoord2f(1, 1); glVertex3f(sprite.x + sx, 0, sprite.z + sz)
-        glTexCoord2f(1, 0); glVertex3f(sprite.x + sx, sprite.height, sprite.z + sz)
-        glTexCoord2f(0, 0); glVertex3f(sprite.x - sx, sprite.height, sprite.z - sz)
+        # Face 1 (parallel to X axis, facing +Z)
+        glBegin(GL_TRIANGLE_STRIP)
+        glTexCoord2f(0, 0); glVertex3f(x - w, h, z)
+        glTexCoord2f(1, 0); glVertex3f(x + w, h, z)
+        glTexCoord2f(0, 1); glVertex3f(x - w, 0, z)
+        glTexCoord2f(1, 1); glVertex3f(x + w, 0, z)
+        glEnd()
+        
+        # Face 2 (parallel to X axis, facing -Z)
+        glBegin(GL_TRIANGLE_STRIP)
+        glTexCoord2f(1, 0); glVertex3f(x + w, h, z)
+        glTexCoord2f(0, 0); glVertex3f(x - w, h, z)
+        glTexCoord2f(1, 1); glVertex3f(x + w, 0, z)
+        glTexCoord2f(0, 1); glVertex3f(x - w, 0, z)
+        glEnd()
+        
+        # Face 3 (parallel to Z axis, facing +X)
+        glBegin(GL_TRIANGLE_STRIP)
+        glTexCoord2f(0, 0); glVertex3f(x, h, z - w)
+        glTexCoord2f(1, 0); glVertex3f(x, h, z + w)
+        glTexCoord2f(0, 1); glVertex3f(x, 0, z - w)
+        glTexCoord2f(1, 1); glVertex3f(x, 0, z + w)
+        glEnd()
+        
+        # Face 4 (parallel to Z axis, facing -X)
+        glBegin(GL_TRIANGLE_STRIP)
+        glTexCoord2f(1, 0); glVertex3f(x, h, z + w)
+        glTexCoord2f(0, 0); glVertex3f(x, h, z - w)
+        glTexCoord2f(1, 1); glVertex3f(x, 0, z + w)
+        glTexCoord2f(0, 1); glVertex3f(x, 0, z - w)
         glEnd()
         
     def draw_trees(self):
+        """Draw all trees"""
         glColor4f(1, 1, 1, 1)
         
+        # Tree type 1
         if "tree1" in self.texture_loader.textures:
             self.texture_loader.bind("tree1")
             for tree in self.trees1:
-                self.draw_sprite_billboard(tree)
+                self.draw_sprite_3d(tree)
                 
+        # Tree type 2
         if "tree2" in self.texture_loader.textures:
             self.texture_loader.bind("tree2")
             for tree in self.trees2:
-                self.draw_sprite_billboard(tree)
+                self.draw_sprite_3d(tree)
                     
     def draw_fire_smoke(self):
+        """Draw fire and smoke sprites"""
+        # Smoke for Earth area
         if self.game_type == 1 and "smoke" in self.texture_loader.textures:
             glColor4f(1, 1, 1, 0.8)
             self.texture_loader.bind("smoke")
-            for smoke in self.smokes[:30]:
-                self.draw_sprite_billboard(smoke)
-        elif self.game_type == 2 and "fire" in self.texture_loader.textures:
+            for smoke in self.smokes:
+                self.draw_sprite_3d(smoke)
+                
+        # Fire for Hell area
+        if self.game_type == 2 and "fire" in self.texture_loader.textures:
             glColor4f(1, 1, 1, 0.9)
             self.texture_loader.bind("fire")
-            for fire in self.fires[:30]:
-                self.draw_sprite_billboard(fire)
+            for fire in self.fires:
+                self.draw_sprite_3d(fire)
                 
     def draw_computer(self):
+        """Draw computer cube (from original VB6)"""
         glPushMatrix()
         
-        glTranslatef(self.computer.x, self.computer.y, self.computer.z)
+        # Position and scale (scale = 0.25 * zoom from original)
+        s = 10 * 0.25 * self.zoom
+        x = self.computer.x * self.zoom
+        z = self.computer.z * self.zoom
+        
+        glTranslatef(x, self.computer.y * self.zoom, z)
         glRotatef(self.computer.rotate_x, 1, 0, 0)
         glRotatef(self.computer.rotate_y, 0, 1, 0)
         glRotatef(self.computer.rotate_z, 0, 0, 1)
         
-        size = 10
         self.texture_loader.bind("computer")
         glColor4f(1, 1, 1, 1)
         
+        # Draw cube faces
         glBegin(GL_QUADS)
-        # Front
-        glTexCoord2f(0, 1); glVertex3f(-size, -size, -size)
-        glTexCoord2f(1, 1); glVertex3f(size, -size, -size)
-        glTexCoord2f(1, 0); glVertex3f(size, size, -size)
-        glTexCoord2f(0, 0); glVertex3f(-size, size, -size)
-        # Back
-        glTexCoord2f(1, 1); glVertex3f(size, -size, size)
-        glTexCoord2f(0, 1); glVertex3f(-size, -size, size)
-        glTexCoord2f(0, 0); glVertex3f(-size, size, size)
-        glTexCoord2f(1, 0); glVertex3f(size, size, size)
-        # Left
-        glTexCoord2f(1, 1); glVertex3f(-size, -size, size)
-        glTexCoord2f(0, 1); glVertex3f(-size, -size, -size)
-        glTexCoord2f(0, 0); glVertex3f(-size, size, -size)
-        glTexCoord2f(1, 0); glVertex3f(-size, size, size)
-        # Right
-        glTexCoord2f(0, 1); glVertex3f(size, -size, -size)
-        glTexCoord2f(1, 1); glVertex3f(size, -size, size)
-        glTexCoord2f(1, 0); glVertex3f(size, size, size)
-        glTexCoord2f(0, 0); glVertex3f(size, size, -size)
-        # Top
-        glTexCoord2f(0, 1); glVertex3f(-size, size, -size)
-        glTexCoord2f(1, 1); glVertex3f(size, size, -size)
-        glTexCoord2f(1, 0); glVertex3f(size, size, size)
-        glTexCoord2f(0, 0); glVertex3f(-size, size, size)
-        # Bottom
-        glTexCoord2f(0, 0); glVertex3f(-size, -size, size)
-        glTexCoord2f(1, 0); glVertex3f(size, -size, size)
-        glTexCoord2f(1, 1); glVertex3f(size, -size, -size)
-        glTexCoord2f(0, 1); glVertex3f(-size, -size, -size)
+        
+        # Front (+Z)
+        glTexCoord2f(0, 1); glVertex3f(-s, -s, -s)
+        glTexCoord2f(1, 1); glVertex3f(s, -s, -s)
+        glTexCoord2f(1, 0); glVertex3f(s, s, -s)
+        glTexCoord2f(0, 0); glVertex3f(-s, s, -s)
+        
+        # Back (-Z)
+        glTexCoord2f(1, 1); glVertex3f(s, -s, s)
+        glTexCoord2f(0, 1); glVertex3f(-s, -s, s)
+        glTexCoord2f(0, 0); glVertex3f(-s, s, s)
+        glTexCoord2f(1, 0); glVertex3f(s, s, s)
+        
+        # Left (-X)
+        glTexCoord2f(1, 1); glVertex3f(-s, -s, s)
+        glTexCoord2f(0, 1); glVertex3f(-s, -s, -s)
+        glTexCoord2f(0, 0); glVertex3f(-s, s, -s)
+        glTexCoord2f(1, 0); glVertex3f(-s, s, s)
+        
+        # Right (+X)
+        glTexCoord2f(0, 1); glVertex3f(s, -s, -s)
+        glTexCoord2f(1, 1); glVertex3f(s, -s, s)
+        glTexCoord2f(1, 0); glVertex3f(s, s, s)
+        glTexCoord2f(0, 0); glVertex3f(s, s, -s)
+        
+        # Top (+Y)
+        glTexCoord2f(0, 1); glVertex3f(-s, s, -s)
+        glTexCoord2f(1, 1); glVertex3f(s, s, -s)
+        glTexCoord2f(1, 0); glVertex3f(s, s, s)
+        glTexCoord2f(0, 0); glVertex3f(-s, s, s)
+        
+        # Bottom (-Y)
+        glTexCoord2f(0, 0); glVertex3f(-s, -s, s)
+        glTexCoord2f(1, 0); glVertex3f(s, -s, s)
+        glTexCoord2f(1, 1); glVertex3f(s, -s, -s)
+        glTexCoord2f(0, 1); glVertex3f(-s, -s, -s)
+        
         glEnd()
         
         glPopMatrix()
         
     def draw_laser(self):
+        """Draw laser beam when shooting"""
         if not self.player.fire_now:
             return
             
@@ -561,19 +669,26 @@ class Doom4D:
         glColor4f(1.0, 0.3, 0.0, 1.0)
         glLineWidth(4.0)
         
-        start_x = self.player.x - math.sin(self.player.angle) * 5
-        start_z = self.player.z + math.cos(self.player.angle) * 5
-        end_x = self.player.x - math.sin(self.player.angle) * 150
-        end_z = self.player.z + math.cos(self.player.angle) * 150
+        z = self.zoom
+        dist = 150 * z
+        
+        # Start from player position
+        start_x = self.player.x * z
+        start_z = self.player.z * z
+        
+        # End at look direction
+        end_x = start_x + dist * math.sin(self.player.angle)
+        end_z = start_z + dist * math.cos(self.player.angle)
         
         glBegin(GL_LINES)
-        glVertex3f(start_x, self.player.y, start_z)
-        glVertex3f(end_x, self.player.y, end_z)
+        glVertex3f(start_x, self.player.y * z, start_z)
+        glVertex3f(end_x, self.player.y * z, end_z)
         glEnd()
         
         glEnable(GL_TEXTURE_2D)
         
     def draw_crosshair(self):
+        """Draw targeting crosshair"""
         glMatrixMode(GL_PROJECTION)
         glPushMatrix()
         glLoadIdentity()
@@ -605,6 +720,7 @@ class Doom4D:
         glPopMatrix()
         
     def draw_energy_bars(self):
+        """Draw player and computer energy bars"""
         glMatrixMode(GL_PROJECTION)
         glPushMatrix()
         glLoadIdentity()
@@ -619,7 +735,7 @@ class Doom4D:
         bar_w, bar_h = 200, 25
         margin = 30
         
-        # Player
+        # Player energy (bottom left)
         px, py = margin, SCREEN_H - bar_h - margin
         glColor3f(0.2, 0.2, 0.2)
         glBegin(GL_QUADS)
@@ -641,7 +757,7 @@ class Doom4D:
         glVertex2i(px + bar_w, py + bar_h); glVertex2i(px, py + bar_h)
         glEnd()
         
-        # Computer
+        # Computer energy (bottom right)
         cx = SCREEN_W - bar_w - margin
         cy = SCREEN_H - bar_h - margin
         glColor3f(0.2, 0.2, 0.2)
@@ -671,7 +787,7 @@ class Doom4D:
         glPopMatrix()
         
     def draw_intro(self):
-        """Draw intro animation with zoom effect"""
+        """Draw intro animation with progressive reveal and zoom (from original VB6)"""
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         
         glMatrixMode(GL_PROJECTION)
@@ -691,32 +807,75 @@ class Doom4D:
         glVertex2i(SCREEN_W, SCREEN_H); glVertex2i(0, SCREEN_H)
         glEnd()
         
-        self.texture_loader.bind("intro")
-        if self.texture_loader.get("intro"):
-            glColor3f(1, 1, 1)
-            glEnable(GL_TEXTURE_2D)
-            
-            # Zoom effect
-            z = self.intro_zoom
-            
-            glBegin(GL_QUADS)
-            glTexCoord2f(0, 1); glVertex2i(z, z)
-            glTexCoord2f(1, 1); glVertex2i(SCREEN_W - z, z)
-            glTexCoord2f(1, 0); glVertex2i(SCREEN_W - z, SCREEN_H - z)
-            glTexCoord2f(0, 0); glVertex2i(z, SCREEN_H - z)
-            glEnd()
-            
-            # Draw logo on top
-            if self.intro_zoom < 80:
-                self.texture_loader.bind("logo")
-                if self.texture_loader.get("logo"):
-                    lz = 150
+        # Progressive reveal of intro picture (4 quadrants)
+        texture_name = "intro_earth" if self.game_type == 1 else "intro_death"
+        
+        if self.intro_stage >= 1:
+            self.texture_loader.bind(texture_name)
+            if self.texture_loader.get(texture_name):
+                glColor3f(1, 1, 1)
+                glEnable(GL_TEXTURE_2D)
+                
+                # Render based on stage (quadrants)
+                if self.intro_stage >= 1:
                     glBegin(GL_QUADS)
-                    glTexCoord2f(0, 0); glVertex2i(lz, lz)
-                    glTexCoord2f(1, 0); glVertex2i(SCREEN_W - lz, lz)
-                    glTexCoord2f(1, 1); glVertex2i(SCREEN_W - lz, SCREEN_H - lz)
-                    glTexCoord2f(0, 1); glVertex2i(lz, SCREEN_H - lz)
+                    glTexCoord2f(0, 0.5); glVertex2i(0, SCREEN_H)
+                    glTexCoord2f(0.5, 0.5); glVertex2i(SCREEN_W//2, SCREEN_H)
+                    glTexCoord2f(0.5, 1); glVertex2i(SCREEN_W//2, 0)
+                    glTexCoord2f(0, 1); glVertex2i(0, 0)
                     glEnd()
+                    
+                if self.intro_stage >= 2:
+                    glBegin(GL_QUADS)
+                    glTexCoord2f(0.5, 0.5); glVertex2i(SCREEN_W//2, SCREEN_H)
+                    glTexCoord2f(1, 0.5); glVertex2i(SCREEN_W, SCREEN_H)
+                    glTexCoord2f(1, 1); glVertex2i(SCREEN_W, 0)
+                    glTexCoord2f(0.5, 1); glVertex2i(SCREEN_W//2, 0)
+                    glEnd()
+                    
+                if self.intro_stage >= 3:
+                    glBegin(GL_QUADS)
+                    glTexCoord2f(0, 0); glVertex2i(0, SCREEN_H//2)
+                    glTexCoord2f(0.5, 0); glVertex2i(SCREEN_W//2, SCREEN_H//2)
+                    glTexCoord2f(0.5, 0.5); glVertex2i(SCREEN_W//2, 0)
+                    glTexCoord2f(0, 0.5); glVertex2i(0, 0)
+                    glEnd()
+                    
+                if self.intro_stage >= 4:
+                    glBegin(GL_QUADS)
+                    glTexCoord2f(0.5, 0); glVertex2i(SCREEN_W//2, SCREEN_H//2)
+                    glTexCoord2f(1, 0); glVertex2i(SCREEN_W, SCREEN_H//2)
+                    glTexCoord2f(1, 0.5); glVertex2i(SCREEN_W, 0)
+                    glTexCoord2f(0.5, 0.5); glVertex2i(SCREEN_W//2, 0)
+                    glEnd()
+        
+        # Stage 5+: Full picture with logo overlay zooming in
+        if self.intro_stage >= 5:
+            # Full intro picture
+            self.texture_loader.bind(texture_name)
+            if self.texture_loader.get(texture_name):
+                glColor3f(1, 1, 1)
+                glBegin(GL_QUADS)
+                glTexCoord2f(0, 0); glVertex2i(0, SCREEN_H)
+                glTexCoord2f(1, 0); glVertex2i(SCREEN_W, SCREEN_H)
+                glTexCoord2f(1, 1); glVertex2i(SCREEN_W, 0)
+                glTexCoord2f(0, 1); glVertex2i(0, 0)
+                glEnd()
+            
+            # Logo overlay with zoom effect
+            if "logo" in self.texture_loader.textures:
+                self.texture_loader.bind("logo")
+                glColor4f(1, 1, 1, 1)
+                
+                # Zoom effect: starts large and zooms in
+                margin = min(80, (self.intro_stage - 5) * 10)
+                
+                glBegin(GL_QUADS)
+                glTexCoord2f(0, 0); glVertex2i(margin, SCREEN_H - margin)
+                glTexCoord2f(1, 0); glVertex2i(SCREEN_W - margin, SCREEN_H - margin)
+                glTexCoord2f(1, 1); glVertex2i(SCREEN_W - margin, margin)
+                glTexCoord2f(0, 1); glVertex2i(margin, margin)
+                glEnd()
         
         glEnable(GL_DEPTH_TEST)
         glMatrixMode(GL_PROJECTION)
@@ -725,6 +884,7 @@ class Doom4D:
         glPopMatrix()
         
     def draw_menu(self):
+        """Draw main menu with logo"""
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         
         glMatrixMode(GL_PROJECTION)
@@ -737,23 +897,28 @@ class Doom4D:
         
         glDisable(GL_DEPTH_TEST)
         
+        # Black background
         glColor3f(0, 0, 0)
         glBegin(GL_QUADS)
         glVertex2i(0, 0); glVertex2i(SCREEN_W, 0)
         glVertex2i(SCREEN_W, SCREEN_H); glVertex2i(0, SCREEN_H)
         glEnd()
         
-        self.texture_loader.bind("logo")
-        if self.texture_loader.get("logo"):
-            glColor3f(1, 1, 1)
+        # Logo centered
+        if "logo" in self.texture_loader.textures:
+            self.texture_loader.bind("logo")
+            glColor4f(1, 1, 1, 1)
             glEnable(GL_TEXTURE_2D)
+            
             lw, lh = 600, 400
-            lx, ly = (SCREEN_W - lw) // 2, (SCREEN_H - lh) // 2
+            lx = (SCREEN_W - lw) // 2
+            ly = (SCREEN_H - lh) // 2
+            
             glBegin(GL_QUADS)
-            glTexCoord2f(0, 0); glVertex2i(lx, ly)
-            glTexCoord2f(1, 0); glVertex2i(lx + lw, ly)
-            glTexCoord2f(1, 1); glVertex2i(lx + lw, ly + lh)
-            glTexCoord2f(0, 1); glVertex2i(lx, ly + lh)
+            glTexCoord2f(0, 0); glVertex2i(lx, ly + lh)
+            glTexCoord2f(1, 0); glVertex2i(lx + lw, ly + lh)
+            glTexCoord2f(1, 1); glVertex2i(lx + lw, ly)
+            glTexCoord2f(0, 1); glVertex2i(lx, ly)
             glEnd()
         
         glEnable(GL_DEPTH_TEST)
@@ -763,23 +928,34 @@ class Doom4D:
         glPopMatrix()
         
     def check_hit(self) -> bool:
+        """Check if laser hits computer (from original VB6)"""
         dx = self.computer.x - self.player.x
         dz = self.computer.z - self.player.z
         dist = math.sqrt(dx*dx + dz*dz)
-        if dist > 120:
+        
+        if dist > 80:  # Max range
             return False
-        angle_to = math.atan2(-dx, dz)
+            
+        # Calculate angle between player look direction and target
+        # Using cosine formula from original
+        angle_to = math.atan2(dx, dz)
         diff = angle_to - self.player.angle
+        
+        # Normalize angle difference
         while diff > PI: diff -= 2*PI
         while diff < -PI: diff += 2*PI
-        return abs(diff) < 0.15
+        
+        # Check if within firing cone
+        return abs(diff) < 0.15  # ~8.6 degrees
         
     def check_collision(self) -> bool:
+        """Check collision between player and computer (from original VB6)"""
         dx = self.computer.x - self.player.x
         dz = self.computer.z - self.player.z
         dist = math.sqrt(dx*dx + dz*dz)
-        if dist < 18:
-            self.player.energy -= 1
+        
+        if dist <= 4:  # Collision distance from original
+            self.player.energy -= 2  # -2 energy per collision
             if self.player.energy <= 0:
                 self.player.energy = 0
                 self.game_over = True
@@ -788,26 +964,28 @@ class Doom4D:
         return False
         
     def handle_input(self):
+        """Handle keyboard input (from original VB6)"""
         keys = pygame.key.get_pressed()
         
         if self.in_menu or self.game_over:
             return
             
-        # Rotation - FIXED
-        if keys[K_LEFT]:
-            self.player.angle -= self.player.rotate_speed
+        # Rotation (from original: LEFT=alfa-delta, RIGHT=alfa+delta)
         if keys[K_RIGHT]:
             self.player.angle += self.player.rotate_speed
+        if keys[K_LEFT]:
+            self.player.angle -= self.player.rotate_speed
             
-        while self.player.angle < 0: self.player.angle += 2*PI
+        # Normalize angle
         while self.player.angle >= 2*PI: self.player.angle -= 2*PI
+        while self.player.angle < 0: self.player.angle += 2*PI
             
-        # Movement
+        # Movement (from original: step*cos(alfa) for Z, step*sin(alfa) for X)
         if keys[K_UP]:
-            self.player.x -= self.player.step * math.sin(self.player.angle)
+            self.player.x += self.player.step * math.sin(self.player.angle)
             self.player.z += self.player.step * math.cos(self.player.angle)
         if keys[K_DOWN]:
-            self.player.x += self.player.step * math.sin(self.player.angle)
+            self.player.x -= self.player.step * math.sin(self.player.angle)
             self.player.z -= self.player.step * math.cos(self.player.angle)
             
         # Shooting
@@ -816,22 +994,24 @@ class Doom4D:
             self.player.fire_now = True
             self.sound.play_sound("laser")
             if self.check_hit():
-                self.computer.energy -= 8
+                self.computer.energy -= 1  # -1 energy per hit from original
                 if self.computer.energy <= 0:
                     self.player.wins += 1
                     self.sound.play_sound("killcomp")
+                    # Switch area and restart
                     self.game_type = 2 if self.game_type == 1 else 1
                     self.start_game(self.game_type)
         else:
             self.player.fire_now = False
         self.player.last_shoot = shoot
         
-        # Boundaries - ORIGINAL SIZE
-        limit = POLE - 5
+        # Boundary check (POLE=200, divided by zoom=2, so ±100)
+        limit = (POLE / self.zoom) - 5
         self.player.x = max(-limit, min(limit, self.player.x))
         self.player.z = max(-limit, min(limit, self.player.z))
         
     def update(self, dt: int):
+        """Update game state"""
         if self.in_menu or self.game_over:
             return
             
@@ -841,11 +1021,37 @@ class Doom4D:
             self.time_ms -= 1000
             self.play_time += 1
             
-        # Update nizz rotation
-        self.nizz_angle += 0.5
+        # Update NIZZ rotation
+        self.nizz_angle += 1.0
         
+        # Update computer
         self.computer.update()
+        
+        # Check collision
         self.check_collision()
+        
+        # Fog control at specific times (from original VB6)
+        if self.play_time == 60 or self.play_time == 300:
+            # White fog ON
+            self.fog_enabled = True
+            self.fog_color = (1.0, 1.0, 1.0, 1.0)
+            glFogi(GL_FOG_MODE, GL_LINEAR)
+            glFogfv(GL_FOG_COLOR, self.fog_color)
+            glFogf(GL_FOG_START, 50.0)
+            glFogf(GL_FOG_END, 500.0)
+            glEnable(GL_FOG)
+            
+        if self.play_time == 180 or self.play_time == 400:
+            # Black fog ON
+            self.fog_enabled = True
+            self.fog_color = (0.0, 0.0, 0.1, 1.0)
+            glFogfv(GL_FOG_COLOR, self.fog_color)
+            glEnable(GL_FOG)
+            
+        if self.play_time == 120 or self.play_time == 500:
+            # Fog OFF
+            self.fog_enabled = False
+            glDisable(GL_FOG)
         
     def update_intro(self, dt: int):
         """Update intro animation"""
@@ -854,15 +1060,15 @@ class Doom4D:
             
         self.intro_timer += dt
         
-        # Zoom in effect
-        if self.intro_timer > 50:
+        # Progress through stages (500ms per quadrant)
+        if self.intro_timer > 500:
             self.intro_timer = 0
-            if self.intro_zoom > 0:
-                self.intro_zoom -= 2
-            else:
+            self.intro_stage += 1
+            if self.intro_stage > 12:  # End intro after stage 12
                 self.intro_running = False
         
     def render(self):
+        """Render the scene"""
         if self.intro_running:
             self.draw_intro()
             pygame.display.flip()
@@ -876,16 +1082,28 @@ class Doom4D:
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         
         glLoadIdentity()
-        look_x = self.player.x - math.sin(self.player.angle) * 100
-        look_z = self.player.z + math.cos(self.player.angle) * 100
+        
+        # Camera setup matching original DirectX7 (left-handed coordinates)
+        # Look from player position toward angle direction
+        z = self.zoom
+        dist2focus = 70  # From original VB6
+        
+        cam_x = self.player.x * z
+        cam_y = self.player.y * z
+        cam_z = self.player.z * z
+        
+        look_x = cam_x + dist2focus * z * math.sin(self.player.angle)
+        look_y = cam_y
+        look_z = cam_z + dist2focus * z * math.cos(self.player.angle)
         
         gluLookAt(
-            self.player.x, self.player.y, self.player.z,
-            look_x, self.player.y, look_z,
+            cam_x, cam_y, cam_z,
+            look_x, look_y, look_z,
             0, 1, 0
         )
         
-        self.draw_nizz()  # Rotating floor underneath
+        # Draw world
+        self.draw_nizz()
         self.draw_sky()
         self.draw_ground()
         self.draw_walls()
@@ -893,12 +1111,15 @@ class Doom4D:
         self.draw_fire_smoke()
         self.draw_computer()
         self.draw_laser()
+        
+        # Draw HUD
         self.draw_crosshair()
         self.draw_energy_bars()
         
         pygame.display.flip()
         
     def run(self):
+        """Main game loop"""
         print("\n" + "="*50)
         print("DOOM 4D - Python Remastered")
         print("(c) 2004 Denis Astahov")
@@ -907,7 +1128,8 @@ class Doom4D:
         print("  1/E - Earth | 2/H - Hell")
         print("  UP/DOWN - Move | LEFT/RIGHT - Rotate")
         print("  SPACE - Shoot | F1-F7 - Music")
-        print("  F12 - Teleport | ESC - Exit")
+        print("  F12 - Teleport | Q - Black Fog | W - White Fog | Z - Fog Off")
+        print("  ESC - Exit")
         
         while self.running:
             dt = self.clock.tick(60)
@@ -924,11 +1146,13 @@ class Doom4D:
                             self.game_over = True
                             
                     if self.intro_running:
+                        # Skip intro on any key
                         if event.key in [K_RETURN, K_SPACE, K_1, K_e]:
                             self.intro_running = False
                         continue
                         
                     if self.in_menu:
+                        # Menu controls
                         if event.key in [K_1, K_e, K_RETURN]:
                             self.sound.play_sound("select")
                             self.start_game(1)
@@ -937,17 +1161,41 @@ class Doom4D:
                             self.start_game(2)
                             
                     if not self.in_menu and not self.game_over:
+                        # In-game controls
                         if event.key in [K_F1, K_F2, K_F3, K_F4, K_F5, K_F6, K_F7]:
                             self.sound.play_music(event.key - K_F1 + 1)
+                            
                         if event.key == K_F12:
+                            # Teleport (switch area)
                             self.game_type = 2 if self.game_type == 1 else 1
                             self.sound.play_sound("teleport")
                             self.start_game(self.game_type)
                             
-                    if self.game_over and event.key == K_n:
-                        self.player.wins = 0
-                        self.start_game(1)
+                        # Fog controls
+                        if event.key == K_z:
+                            glDisable(GL_FOG)
+                            self.fog_enabled = False
+                        if event.key == K_w:
+                            glFogi(GL_FOG_MODE, GL_LINEAR)
+                            glFogfv(GL_FOG_COLOR, (1.0, 1.0, 1.0, 1.0))
+                            glFogf(GL_FOG_START, 50.0)
+                            glFogf(GL_FOG_END, 500.0)
+                            glEnable(GL_FOG)
+                        if event.key == K_q:
+                            glFogi(GL_FOG_MODE, GL_LINEAR)
+                            glFogfv(GL_FOG_COLOR, (0.0, 0.0, 0.1, 1.0))
+                            glFogf(GL_FOG_START, 50.0)
+                            glFogf(GL_FOG_END, 500.0)
+                            glEnable(GL_FOG)
                             
+                    if self.game_over:
+                        # Game over controls
+                        if event.key == K_n:
+                            # New game
+                            self.player.wins = 0
+                            self.start_game(1)
+                            
+            # Update and render
             if self.intro_running:
                 self.update_intro(dt)
             else:
