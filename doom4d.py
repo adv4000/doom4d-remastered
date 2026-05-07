@@ -272,7 +272,7 @@ class Doom4D:
         # Intro animation state
         self.intro_stage = 0
         self.intro_timer = 0
-        self.intro_zoom = 80.0  # Start at 80 (full screen), zoom out to 0
+        self.intro_zoom = 0.0  # Start at 0 (full screen logo), increase to 80 (shrink to center)
         self.intro_running = True
         
         # Game objects
@@ -996,23 +996,24 @@ class Doom4D:
                 glTexCoord2f(0, 1); glVertex2i(0, SCREEN_H)
                 glEnd()
         
-        # Stage 6+: Logo overlay - zoom IN from corners
+        # Stage 6+: Logo overlay - zoom OUT from full screen to small
         # From original: DDRect(x, Y, ScreenW - x, ScreenH - Y)
-        # x,Y start at 0 and increase to 80 (logo grows from corners)
+        # x,Y start at 0 and increase to 80
+        # This makes logo SHRINK from full screen to center
         if self.intro_stage >= 6:
             if "logo" in self.texture_loader.textures:
                 self.texture_loader.bind("logo")
                 glColor4f(1, 1, 1, 1)
                 
                 margin = int(self.intro_zoom)
-                if margin > 0:
-                    # Logo appears in center and expands to fill screen
-                    glBegin(GL_QUADS)
-                    glTexCoord2f(0, 0); glVertex2i(margin, margin)
-                    glTexCoord2f(1, 0); glVertex2i(SCREEN_W - margin, margin)
-                    glTexCoord2f(1, 1); glVertex2i(SCREEN_W - margin, SCREEN_H - margin)
-                    glTexCoord2f(0, 1); glVertex2i(margin, SCREEN_H - margin)
-                    glEnd()
+                # Logo starts full screen (margin=0) and shrinks (margin increases)
+                # Left=margin, Top=margin, Right=ScreenW-margin, Bottom=ScreenH-margin
+                glBegin(GL_QUADS)
+                glTexCoord2f(0, 0); glVertex2i(margin, margin)
+                glTexCoord2f(1, 0); glVertex2i(SCREEN_W - margin, margin)
+                glTexCoord2f(1, 1); glVertex2i(SCREEN_W - margin, SCREEN_H - margin)
+                glTexCoord2f(0, 1); glVertex2i(margin, SCREEN_H - margin)
+                glEnd()
         
         glEnable(GL_DEPTH_TEST)
         glMatrixMode(GL_PROJECTION)
@@ -1228,9 +1229,9 @@ class Doom4D:
         
         # Zoom animation (PicShowed = 6 in original, runs EVERY FRAME)
         if self.intro_stage >= 6:
-            # Zoom OUT every frame (x = x + 0.3 in original, but we reverse it)
-            self.intro_zoom = max(0.0, self.intro_zoom - 0.5 * (dt / 16.67))  # Faster zoom
-            if self.intro_zoom <= 0.0:
+            # Zoom OUT: x increases from 0 to 80 (logo shrinks from full screen)
+            self.intro_zoom = min(80.0, self.intro_zoom + 0.5 * (dt / 16.67))
+            if self.intro_zoom >= 80.0:
                 self.intro_running = False
         
     def render(self):
