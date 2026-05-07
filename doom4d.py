@@ -24,8 +24,8 @@ FIRESMOKE = 40
 PI = 3.14159265358979
 POLE = 100  # Arena size from -100 to 100 (from original!)
 
-SCREEN_W = 1024
-SCREEN_H = 768
+SCREEN_W = 1920
+SCREEN_H = 1080
 TITLE = "DOOM 4D - Remastered (c) 2004 Denis Astahov"
 
 
