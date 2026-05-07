@@ -169,7 +169,7 @@ class Player:
         self.x = 0.0
         self.y = 10.0
         self.z = -180.0     # Start far back
-        self.angle = 0.0    # 0 = looking forward (+Z direction)
+        self.angle = 0.0    # 0 = looking forward into arena (+Z direction)
         
         self.step = 2.0
         self.rotate_speed = 0.03
@@ -293,36 +293,33 @@ class Doom4D:
         self.texture_loader.load_texture("logo", "IntroD4D")
         
     def load_game_textures(self):
-        """Load game textures for current area"""
-        area = "Earth" if self.game_type == 1 else "Death"
-        print(f"\n=== Loading textures for {area} ===")
+        """Load ALL game textures (both areas)"""
+        print(f"\n=== Loading ALL textures ===")
         
-        # Ground
+        area = "Earth" if self.game_type == 1 else "Death"
+        
+        # Ground for current area
         self.texture_loader.load_texture("ground", f"{area}/Ground")
         
-        # Walls
+        # Walls for current area
         self.texture_loader.load_texture("wall1", f"{area}/Stena1")
         self.texture_loader.load_texture("wall2", f"{area}/Stena2")
         
-        # Sky - load from Earth folder (shared)
+        # Sky
         self.texture_loader.load_texture("sky", "Earth/Nebo")
         
-        # Trees - Tree1 only in Earth, Tree2 only in Death
-        if self.game_type == 1:
-            self.texture_loader.load_texture("tree1", "Earth/Tree1")
-        else:
-            self.texture_loader.load_texture("tree2", "Death/Tree2")
+        # Load BOTH tree textures (Tree1 from Earth, Tree2 from Death)
+        self.texture_loader.load_texture("tree1", "Earth/Tree1")
+        self.texture_loader.load_texture("tree2", "Death/Tree2")
             
-        # Fire/Smoke - Smoke only in Earth, Fire only in Death
-        if self.game_type == 1:
-            self.texture_loader.load_texture("smoke", "Earth/Smoke")
-        else:
-            self.texture_loader.load_texture("fire", "Death/Faire")
+        # Load BOTH fire and smoke textures
+        self.texture_loader.load_texture("smoke", "Earth/Smoke")
+        self.texture_loader.load_texture("fire", "Death/Faire")
             
-        # Computer cube texture
+        # Computer cube
         self.texture_loader.load_texture("computer", "CompKub")
         
-        # Intro
+        # Intro for current area
         self.texture_loader.load_texture("intro", f"{area}/Intro1")
         
     def load_sounds(self):
@@ -534,17 +531,20 @@ class Doom4D:
         """Draw trees"""
         glColor4f(1, 1, 1, 1)
         
-        # Always draw both tree types with appropriate textures
+        # Debug info
+        t1_loaded = "tree1" in self.texture_loader.textures
+        t2_loaded = "tree2" in self.texture_loader.textures
+        print(f"Drawing trees - tree1:{t1_loaded}, tree2:{t2_loaded}, count:{len(self.trees1)}") if not hasattr(self, '_tree_debug') else None
+        self._tree_debug = True
+        
         # Type 1 trees (taller, narrower)
         if "tree1" in self.texture_loader.textures:
             self.texture_loader.bind("tree1")
             for tree in self.trees1:
                 self.draw_sprite_billboard(tree)
-        # Type 2 trees (shorter, wider) - use tree2 texture if available, else tree1
+        # Type 2 trees (shorter, wider)
         if "tree2" in self.texture_loader.textures:
             self.texture_loader.bind("tree2")
-        elif "tree1" in self.texture_loader.textures:
-            self.texture_loader.bind("tree1")
         for tree in self.trees2:
             self.draw_sprite_billboard(tree)
                     
@@ -622,10 +622,10 @@ class Doom4D:
         glColor4f(1.0, 0.3, 0.0, 1.0)
         glLineWidth(4.0)
         
-        start_x = self.player.x + math.sin(self.player.angle) * 5
-        start_z = self.player.z - math.cos(self.player.angle) * 5  # Inverted
-        end_x = self.player.x + math.sin(self.player.angle) * 200
-        end_z = self.player.z - math.cos(self.player.angle) * 200  # Inverted
+        start_x = self.player.x - math.sin(self.player.angle) * 5
+        start_z = self.player.z + math.cos(self.player.angle) * 5
+        end_x = self.player.x - math.sin(self.player.angle) * 200
+        end_z = self.player.z + math.cos(self.player.angle) * 200
         
         glBegin(GL_LINES)
         glVertex3f(start_x, self.player.y, start_z)
@@ -816,8 +816,8 @@ class Doom4D:
         if dist > 180:
             return False
             
-        # Angle to computer (inverted Z)
-        angle_to = math.atan2(dx, -dz)  # Inverted Z
+        # Angle to computer
+        angle_to = math.atan2(-dx, dz)  # Matched to new coordinate system
         diff = angle_to - self.player.angle
         
         while diff > PI: diff -= 2*PI
@@ -847,23 +847,24 @@ class Doom4D:
         if self.in_menu or self.game_over:
             return
             
-        # === FIXED: LEFT = rotate left, RIGHT = rotate right ===
+        # === Rotation ===
+        # LEFT decreases angle (rotates left), RIGHT increases angle (rotates right)
         if keys[K_LEFT]:
-            self.player.angle += self.player.rotate_speed  # Inverted for correct feel
+            self.player.angle -= self.player.rotate_speed
         if keys[K_RIGHT]:
-            self.player.angle -= self.player.rotate_speed  # Inverted for correct feel
+            self.player.angle += self.player.rotate_speed
             
         # Normalize
         while self.player.angle < 0: self.player.angle += 2*PI
         while self.player.angle >= 2*PI: self.player.angle -= 2*PI
             
-        # Forward/Backward (inverted Z for OpenGL coordinates)
+        # Forward/Backward
         if keys[K_UP]:
-            self.player.x += self.player.step * math.sin(self.player.angle)
-            self.player.z -= self.player.step * math.cos(self.player.angle)  # Inverted
+            self.player.x -= self.player.step * math.sin(self.player.angle)  # Negative
+            self.player.z += self.player.step * math.cos(self.player.angle)
         if keys[K_DOWN]:
-            self.player.x -= self.player.step * math.sin(self.player.angle)
-            self.player.z += self.player.step * math.cos(self.player.angle)  # Inverted
+            self.player.x += self.player.step * math.sin(self.player.angle)
+            self.player.z -= self.player.step * math.cos(self.player.angle)
             
         # Shooting
         shoot = keys[K_SPACE]
@@ -911,10 +912,9 @@ class Doom4D:
         
         glLoadIdentity()
         
-        # OpenGL: +Z is out of screen, so we look at -Z
-        # Invert cos for proper rotation direction
-        look_x = self.player.x + math.sin(self.player.angle) * 100
-        look_z = self.player.z - math.cos(self.player.angle) * 100  # Inverted for correct rotation
+        # Camera look direction - angle increases = rotates right
+        look_x = self.player.x - math.sin(self.player.angle) * 100  # Negative sin
+        look_z = self.player.z + math.cos(self.player.angle) * 100
         
         gluLookAt(
             self.player.x, self.player.y, self.player.z,
