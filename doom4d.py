@@ -40,6 +40,27 @@ class TextureLoader:
         self.base_path = base_path
         self.textures: Dict[str, int] = {}
         
+    def make_transparent(self, surface: pygame.Surface) -> pygame.Surface:
+        """Convert black pixels to transparent (color key from VB6)"""
+        # Get pixel array
+        pixels = pygame.PixelArray(surface)
+        
+        # Create new surface with alpha
+        new_surface = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+        
+        width, height = surface.get_size()
+        for y in range(height):
+            for x in range(width):
+                color = surface.get_at((x, y))
+                # If pixel is black (or very dark), make it transparent
+                if color[0] < 15 and color[1] < 15 and color[2] < 15:
+                    new_surface.set_at((x, y), (0, 0, 0, 0))  # Transparent
+                else:
+                    new_surface.set_at((x, y), (color[0], color[1], color[2], 255))
+        
+        del pixels
+        return new_surface
+        
     def load_texture(self, name: str, relative_path: str) -> bool:
         """Load texture from file"""
         full_path = self.base_path / relative_path
@@ -56,6 +77,11 @@ class TextureLoader:
             
         try:
             surface = pygame.image.load(str(full_path))
+            
+            # Convert to RGBA with black as transparent (color key from VB6)
+            if surface.get_format().BytesPerPixel == 3:
+                surface = self.make_transparent(surface)
+            
             # Flip for OpenGL coordinate system
             surface = pygame.transform.flip(surface, False, True)
             data = pygame.image.tostring(surface, "RGBA", True)
@@ -67,6 +93,9 @@ class TextureLoader:
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
+            
+            # Tell OpenGL to handle alpha properly
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_PRIORITY, 1.0)
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data)
             
             self.textures[name] = texture_id
@@ -296,6 +325,10 @@ class Doom4D:
         glEnable(GL_TEXTURE_2D)
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        
+        # Alpha test for transparent textures (black = transparent, like original VB6)
+        glEnable(GL_ALPHA_TEST)
+        glAlphaFunc(GL_GREATER, 0.1)
         
         # Perspective projection
         glMatrixMode(GL_PROJECTION)
