@@ -1231,11 +1231,7 @@ class Doom4D:
         if self.intro_stage >= 6:
             if self.intro_zoom < 80.0:
                 self.intro_zoom = min(80.0, self.intro_zoom + 0.5 * (dt / 16.67))
-            else:
-                # Hold for 2 seconds after zoom completes
-                self.intro_hold_timer += dt
-                if self.intro_hold_timer > 2000:
-                    self.intro_running = False
+            # After zoom, wait for user input (Don't auto-end!)
         
     def render(self):
         """Render the scene"""
