@@ -1306,18 +1306,16 @@ class Doom4D:
                     
                 elif event.type == KEYDOWN:
                     if event.key == K_ESCAPE:
-                        if self.game_over or self.in_menu:
-                            self.running = False
-                        else:
-                            self.game_over = True
-                            
+                        self.running = False
+                        return
+                        
+                    # Skip intro on ANY key at ANY time
                     if self.intro_running:
-                        # Skip intro on any key - START GAME IMMEDIATELY
                         self.intro_running = False
                         self.in_menu = False
                         self.sound.play_sound("select")
                         self.start_game(1)
-                        continue
+                        return
                         
                     if self.in_menu:
                         # Menu controls
