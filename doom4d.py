@@ -1003,11 +1003,11 @@ class Doom4D:
         if self.in_menu or self.game_over:
             return
             
-        # Rotation (from original: LEFT=alfa-delta, RIGHT=alfa+delta)
+        # Rotation - swapped for OpenGL coordinate system
         if keys[K_RIGHT]:
-            self.player.angle += self.player.rotate_speed
-        if keys[K_LEFT]:
             self.player.angle -= self.player.rotate_speed
+        if keys[K_LEFT]:
+            self.player.angle += self.player.rotate_speed
             
         # Normalize angle
         while self.player.angle >= 2*PI: self.player.angle -= 2*PI
