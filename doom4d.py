@@ -355,8 +355,9 @@ class Doom4D:
         self.texture_loader.load_texture("wall1_death", "Death/Stena1", True)
         self.texture_loader.load_texture("wall2_death", "Death/Stena2", True)
         
-        # Sky (no transparency)
-        self.texture_loader.load_texture("sky", "Earth/Nebo", False)
+        # Sky (different for each area, no transparency)
+        self.texture_loader.load_texture("sky_earth", "Earth/Nebo", False)
+        self.texture_loader.load_texture("sky_death", "Death/Nebo", False)
         
         # Trees (WITH transparency)
         self.texture_loader.load_texture("tree1", "Earth/Tree1", True)
@@ -499,8 +500,9 @@ class Doom4D:
         
     def draw_sky(self):
         """Draw sky (NEBO from original) at Y=50"""
-        self.texture_loader.bind("sky")
-        glColor4f(1, 1, 1, 1)
+        texture_name = "sky_earth" if self.game_type == 1 else "sky_death"
+        self.texture_loader.bind(texture_name)
+        glColor4f(1, 1, 1, 1)}
         
         z = self.zoom
         
