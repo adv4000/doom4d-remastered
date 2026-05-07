@@ -102,7 +102,8 @@ class SoundManager:
     def __init__(self, base_path: Path):
         self.base_path = base_path
         self.sounds: Dict[str, pygame.mixer.Sound] = {}
-        self.music_files: Dict[int, str] = {}
+        self.music_sounds: Dict[int, pygame.mixer.Sound] = {}  # For music tracks
+        self.current_music = None
         
     def load_sound(self, name: str, relative_path: str) -> bool:
         full_path = self.base_path / relative_path
@@ -124,18 +125,27 @@ class SoundManager:
             for f in sorted(music_path.glob("Music*.wav")):
                 num = ''.join(filter(str.isdigit, f.stem))
                 if num:
-                    self.music_files[int(num)] = str(f)
-                    print(f"Found music: {f.name}")
+                    try:
+                        sound = pygame.mixer.Sound(str(f))
+                        self.music_sounds[int(num)] = sound
+                        print(f"Loaded music track {num}: {f.name}")
+                    except Exception as e:
+                        print(f"Could not load music {f.name}: {e}")
                     
     def play_sound(self, name: str):
         if name in self.sounds:
             self.sounds[name].play()
             
     def play_music(self, num: int):
-        if num in self.music_files:
+        if num in self.music_sounds:
             try:
-                pygame.mixer.music.load(self.music_files[num])
-                pygame.mixer.music.play(-1)
+                # Stop current music
+                if self.current_music and self.current_music in self.music_sounds:
+                    self.music_sounds[self.current_music].stop()
+                # Play new track on loop
+                self.music_sounds[num].play(-1)
+                self.current_music = num
+                print(f"Playing music track {num}")
             except Exception as e:
                 print(f"Error playing music: {e}")
 
@@ -524,35 +534,35 @@ class Doom4D:
         """Draw trees"""
         glColor4f(1, 1, 1, 1)
         
-        if self.game_type == 1:
-            # Earth - show both tree types
-            if "tree1" in self.texture_loader.textures:
-                self.texture_loader.bind("tree1")
-                for tree in self.trees1:
-                    self.draw_sprite_billboard(tree)
-        else:
-            # Hell - only tree2
-            if "tree2" in self.texture_loader.textures:
-                self.texture_loader.bind("tree2")
-                for tree in self.trees2:
-                    self.draw_sprite_billboard(tree)
+        # Always draw both tree types with appropriate textures
+        # Type 1 trees (taller, narrower)
+        if "tree1" in self.texture_loader.textures:
+            self.texture_loader.bind("tree1")
+            for tree in self.trees1:
+                self.draw_sprite_billboard(tree)
+        # Type 2 trees (shorter, wider) - use tree2 texture if available, else tree1
+        if "tree2" in self.texture_loader.textures:
+            self.texture_loader.bind("tree2")
+        elif "tree1" in self.texture_loader.textures:
+            self.texture_loader.bind("tree1")
+        for tree in self.trees2:
+            self.draw_sprite_billboard(tree)
                     
     def draw_fire_smoke(self):
         """Draw fire and smoke"""
         glColor4f(1, 1, 1, 0.9)
         
-        if self.game_type == 1:
-            # Earth - smoke
-            if "smoke" in self.texture_loader.textures:
-                self.texture_loader.bind("smoke")
-                for smoke in self.smokes[:20]:
-                    self.draw_sprite_billboard(smoke)
-        else:
-            # Hell - fire
-            if "fire" in self.texture_loader.textures:
-                self.texture_loader.bind("fire")
-                for fire in self.fires[:20]:
-                    self.draw_sprite_billboard(fire)
+        # Draw smoke (mainly for Earth, but available everywhere)
+        if "smoke" in self.texture_loader.textures:
+            self.texture_loader.bind("smoke")
+            for smoke in self.smokes[:25]:
+                self.draw_sprite_billboard(smoke)
+        
+        # Draw fire (mainly for Hell, but available everywhere)
+        if "fire" in self.texture_loader.textures:
+            self.texture_loader.bind("fire")
+            for fire in self.fires[:25]:
+                self.draw_sprite_billboard(fire)
                     
     def draw_computer(self):
         """Draw enemy cube"""
@@ -613,9 +623,9 @@ class Doom4D:
         glLineWidth(4.0)
         
         start_x = self.player.x + math.sin(self.player.angle) * 5
-        start_z = self.player.z + math.cos(self.player.angle) * 5
+        start_z = self.player.z - math.cos(self.player.angle) * 5  # Inverted
         end_x = self.player.x + math.sin(self.player.angle) * 200
-        end_z = self.player.z + math.cos(self.player.angle) * 200
+        end_z = self.player.z - math.cos(self.player.angle) * 200  # Inverted
         
         glBegin(GL_LINES)
         glVertex3f(start_x, self.player.y, start_z)
@@ -806,7 +816,8 @@ class Doom4D:
         if dist > 180:
             return False
             
-        angle_to = math.atan2(dx, dz)
+        # Angle to computer (inverted Z)
+        angle_to = math.atan2(dx, -dz)  # Inverted Z
         diff = angle_to - self.player.angle
         
         while diff > PI: diff -= 2*PI
@@ -836,23 +847,23 @@ class Doom4D:
         if self.in_menu or self.game_over:
             return
             
-        # === FIXED: LEFT = rotate left (negative), RIGHT = rotate right (positive) ===
+        # === FIXED: LEFT = rotate left, RIGHT = rotate right ===
         if keys[K_LEFT]:
-            self.player.angle -= self.player.rotate_speed
+            self.player.angle += self.player.rotate_speed  # Inverted for correct feel
         if keys[K_RIGHT]:
-            self.player.angle += self.player.rotate_speed
+            self.player.angle -= self.player.rotate_speed  # Inverted for correct feel
             
         # Normalize
         while self.player.angle < 0: self.player.angle += 2*PI
         while self.player.angle >= 2*PI: self.player.angle -= 2*PI
             
-        # Forward/Backward
+        # Forward/Backward (inverted Z for OpenGL coordinates)
         if keys[K_UP]:
             self.player.x += self.player.step * math.sin(self.player.angle)
-            self.player.z += self.player.step * math.cos(self.player.angle)
+            self.player.z -= self.player.step * math.cos(self.player.angle)  # Inverted
         if keys[K_DOWN]:
             self.player.x -= self.player.step * math.sin(self.player.angle)
-            self.player.z -= self.player.step * math.cos(self.player.angle)
+            self.player.z += self.player.step * math.cos(self.player.angle)  # Inverted
             
         # Shooting
         shoot = keys[K_SPACE]
@@ -900,8 +911,10 @@ class Doom4D:
         
         glLoadIdentity()
         
+        # OpenGL: +Z is out of screen, so we look at -Z
+        # Invert cos for proper rotation direction
         look_x = self.player.x + math.sin(self.player.angle) * 100
-        look_z = self.player.z + math.cos(self.player.angle) * 100
+        look_z = self.player.z - math.cos(self.player.angle) * 100  # Inverted for correct rotation
         
         gluLookAt(
             self.player.x, self.player.y, self.player.z,
