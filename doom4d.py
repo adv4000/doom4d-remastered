@@ -295,6 +295,16 @@ class Doom4D:
         # Rotating floor (NIZZ) angle
         self.nizz_angle = 0.0
         
+        # Fire/Smoke animation
+        self.cel_x = 0
+        self.cel_y = 0
+        self.frame_x = 5  # 5 frames horizontally
+        self.frame_y = 4  # 4 frames vertically
+        self.cel_width = 32
+        self.cel_height = 64
+        self.anim_timer = 0
+        self.anim_delay = 40  # 40ms between frames
+        
         # Fog control
         self.fog_enabled = False
         self.fog_color = (1.0, 1.0, 1.0, 1.0)  # White
@@ -352,7 +362,7 @@ class Doom4D:
         self.texture_loader.load_texture("tree1", "Earth/Tree1", True)
         self.texture_loader.load_texture("tree2", "Death/Tree2", True)
         
-        # Fire and Smoke (WITH transparency)
+        # Fire and Smoke (WITH transparency, animated sprites)
         self.texture_loader.load_texture("smoke", "Earth/Smoke", True)
         self.texture_loader.load_texture("fire", "Death/Faire", True)
         
@@ -591,6 +601,51 @@ class Doom4D:
         glTexCoord2f(0, 1); glVertex3f(x, 0, z - w)
         glEnd()
         
+    def draw_sprite_3d_animated(self, sprite: Sprite3D, u_off: float, v_off: float, u_size: float, v_size: float):
+        """Draw animated cross-shaped 3D sprite with UV offset"""
+        x = sprite.x * self.zoom
+        z = sprite.z * self.zoom
+        h = sprite.height * self.zoom
+        w = sprite.width * self.zoom
+        
+        # UV coordinates for current animation frame
+        u0 = u_off
+        u1 = u_off + u_size
+        v0 = v_off
+        v1 = v_off + v_size
+        
+        # Face 1 (parallel to X axis, facing +Z)
+        glBegin(GL_TRIANGLE_STRIP)
+        glTexCoord2f(u0, v0); glVertex3f(x - w, h, z)
+        glTexCoord2f(u1, v0); glVertex3f(x + w, h, z)
+        glTexCoord2f(u0, v1); glVertex3f(x - w, 0, z)
+        glTexCoord2f(u1, v1); glVertex3f(x + w, 0, z)
+        glEnd()
+        
+        # Face 2 (parallel to X axis, facing -Z)
+        glBegin(GL_TRIANGLE_STRIP)
+        glTexCoord2f(u1, v0); glVertex3f(x + w, h, z)
+        glTexCoord2f(u0, v0); glVertex3f(x - w, h, z)
+        glTexCoord2f(u1, v1); glVertex3f(x + w, 0, z)
+        glTexCoord2f(u0, v1); glVertex3f(x - w, 0, z)
+        glEnd()
+        
+        # Face 3 (parallel to Z axis, facing +X)
+        glBegin(GL_TRIANGLE_STRIP)
+        glTexCoord2f(u0, v0); glVertex3f(x, h, z - w)
+        glTexCoord2f(u1, v0); glVertex3f(x, h, z + w)
+        glTexCoord2f(u0, v1); glVertex3f(x, 0, z - w)
+        glTexCoord2f(u1, v1); glVertex3f(x, 0, z + w)
+        glEnd()
+        
+        # Face 4 (parallel to Z axis, facing -X)
+        glBegin(GL_TRIANGLE_STRIP)
+        glTexCoord2f(u1, v0); glVertex3f(x, h, z + w)
+        glTexCoord2f(u0, v0); glVertex3f(x, h, z - w)
+        glTexCoord2f(u1, v1); glVertex3f(x, 0, z + w)
+        glTexCoord2f(u0, v1); glVertex3f(x, 0, z - w)
+        glEnd()
+        
     def draw_trees(self):
         """Draw all trees"""
         glColor4f(1, 1, 1, 1)
@@ -608,20 +663,26 @@ class Doom4D:
                 self.draw_sprite_3d(tree)
                     
     def draw_fire_smoke(self):
-        """Draw fire and smoke sprites"""
+        """Draw fire and smoke sprites with animation"""
+        # Calculate UV coordinates for current animation frame
+        u_offset = self.cel_x / self.frame_x
+        v_offset = self.cel_y / self.frame_y
+        u_size = 1.0 / self.frame_x
+        v_size = 1.0 / self.frame_y
+        
         # Smoke for Earth area
         if self.game_type == 1 and "smoke" in self.texture_loader.textures:
             glColor4f(1, 1, 1, 0.8)
             self.texture_loader.bind("smoke")
             for smoke in self.smokes:
-                self.draw_sprite_3d(smoke)
+                self.draw_sprite_3d_animated(smoke, u_offset, v_offset, u_size, v_size)
                 
         # Fire for Hell area
         if self.game_type == 2 and "fire" in self.texture_loader.textures:
             glColor4f(1, 1, 1, 0.9)
             self.texture_loader.bind("fire")
             for fire in self.fires:
-                self.draw_sprite_3d(fire)
+                self.draw_sprite_3d_animated(fire, u_offset, v_offset, u_size, v_size)
                 
     def draw_computer(self):
         """Draw computer cube (from original VB6)"""
@@ -1045,6 +1106,17 @@ class Doom4D:
         if self.time_ms >= 1000:
             self.time_ms -= 1000
             self.play_time += 1
+            
+        # Update fire/smoke animation
+        self.anim_timer += dt
+        if self.anim_timer >= self.anim_delay:
+            self.anim_timer = 0
+            self.cel_x += 1
+            if self.cel_x >= self.frame_x:
+                self.cel_x = 0
+                self.cel_y += 1
+                if self.cel_y >= self.frame_y:
+                    self.cel_y = 0
             
         # Update NIZZ rotation
         self.nizz_angle += 1.0
