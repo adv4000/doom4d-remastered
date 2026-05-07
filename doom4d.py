@@ -66,6 +66,9 @@ class TextureLoader:
             print(f"Error loading {relative_path}: {e}")
             return False
             
+    def get(self, name: str) -> int:
+        return self.textures.get(name, 0)
+        
     def bind(self, name: str):
         if name in self.textures:
             glBindTexture(GL_TEXTURE_2D, self.textures[name])
