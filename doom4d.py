@@ -1315,7 +1315,6 @@ class Doom4D:
                         self.in_menu = False
                         self.sound.play_sound("select")
                         self.start_game(1)
-                        return
                         
                     if self.in_menu:
                         # Menu controls
