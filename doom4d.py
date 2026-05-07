@@ -321,6 +321,12 @@ class Doom4D:
         self.load_all_textures()
         self.load_sounds()
         
+        # Start intro music (from original VB6: PlayMusic in DemonstLoop)
+        self.sound.play_music(1)
+        
+        # Play intro sound at start
+        self.sound.play_sound("intro0")
+        
     def init_opengl(self):
         """Initialize OpenGL settings"""
         glEnable(GL_DEPTH_TEST)
