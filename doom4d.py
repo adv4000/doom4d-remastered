@@ -67,6 +67,7 @@ class TextureLoader:
             return False
             
         try:
+            print(f"Loading {name} from {full_path.name}...")
             surface = pygame.image.load(str(full_path))
             
             # Convert to RGBA with transparency (color key from VB6)
@@ -825,6 +826,7 @@ class Doom4D:
         glLoadIdentity()
         
         glDisable(GL_DEPTH_TEST)
+        glEnable(GL_TEXTURE_2D)
         
         # Black background
         glColor3f(0, 0, 0)
@@ -922,9 +924,10 @@ class Doom4D:
         glLoadIdentity()
         
         glDisable(GL_DEPTH_TEST)
+        glEnable(GL_TEXTURE_2D)
         
         # Black background
-        glColor3f(0, 0, 0)
+        glColor3f(1, 1, 1)
         glBegin(GL_QUADS)
         glVertex2i(0, 0); glVertex2i(SCREEN_W, 0)
         glVertex2i(SCREEN_W, SCREEN_H); glVertex2i(0, SCREEN_H)
