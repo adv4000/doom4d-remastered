@@ -984,7 +984,7 @@ class Doom4D:
                     glEnd()
         
         # Stage 5: Full intro picture (before zoom)
-        if self.intro_stage >= 5:
+        if self.intro_stage >= 5 and self.intro_stage < 6:
             # Full intro picture
             self.texture_loader.bind(texture_name)
             if self.texture_loader.get(texture_name):
@@ -1312,9 +1312,11 @@ class Doom4D:
                             self.game_over = True
                             
                     if self.intro_running:
-                        # Skip intro on any key
-                        if event.key in [K_RETURN, K_SPACE, K_1, K_e]:
-                            self.intro_running = False
+                        # Skip intro on any key - START GAME IMMEDIATELY
+                        self.intro_running = False
+                        self.in_menu = False
+                        self.sound.play_sound("select")
+                        self.start_game(1)
                         continue
                         
                     if self.in_menu:
