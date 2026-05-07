@@ -1198,7 +1198,7 @@ class Doom4D:
         self.intro_timer += dt
         
         # Progress through stages (500ms per quadrant)
-        if self.intro_timer > 500:
+        if self.intro_timer > 100:  # 100ms per stage (faster animation)
             self.intro_timer = 0
             self.intro_stage += 1
             if self.intro_stage > 12:  # End intro after stage 12
