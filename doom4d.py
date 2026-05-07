@@ -52,7 +52,7 @@ class TextureLoader:
         
         return new_surface
         
-    def load_texture(self, name: str, relative_path: str) -> bool:
+    def load_texture(self, name: str, relative_path: str, with_transparency: bool = False) -> bool:
         """Load texture from file"""
         full_path = self.base_path / relative_path
         
@@ -70,13 +70,9 @@ class TextureLoader:
             print(f"Loading {name} from {full_path.name}...")
             surface = pygame.image.load(str(full_path))
             
-            # Convert to RGBA with transparency (color key from VB6)
-            if surface.get_format().BytesPerPixel == 3 or str(full_path).lower().endswith('.bmp'):
+            # Apply transparency only for sprites/walls (not for floor, sky, computer)
+            if with_transparency:
                 surface = self.make_transparent(surface)
-            
-            # Also check for PNG without alpha
-            elif surface.get_alpha() is None:
-                surface = surface.convert_alpha()
             
             # Flip for OpenGL coordinate system
             surface = pygame.transform.flip(surface, False, True)
@@ -339,38 +335,38 @@ class Doom4D:
         """Load all textures from both Earth and Death areas"""
         print("\n=== Loading ALL textures ===")
         
-        # Ground textures
-        self.texture_loader.load_texture("ground_earth", "Earth/Ground")
-        self.texture_loader.load_texture("ground_death", "Death/Ground")
+        # Ground (no transparency)
+        self.texture_loader.load_texture("ground_earth", "Earth/Ground", False)
+        self.texture_loader.load_texture("ground_death", "Death/Ground", False)
         
-        # Wall textures
-        self.texture_loader.load_texture("wall1_earth", "Earth/Stena1")
-        self.texture_loader.load_texture("wall2_earth", "Earth/Stena2")
-        self.texture_loader.load_texture("wall1_death", "Death/Stena1")
-        self.texture_loader.load_texture("wall2_death", "Death/Stena2")
+        # Wall textures (WITH transparency for black areas)
+        self.texture_loader.load_texture("wall1_earth", "Earth/Stena1", True)
+        self.texture_loader.load_texture("wall2_earth", "Earth/Stena2", True)
+        self.texture_loader.load_texture("wall1_death", "Death/Stena1", True)
+        self.texture_loader.load_texture("wall2_death", "Death/Stena2", True)
         
-        # Sky (from Earth folder)
-        self.texture_loader.load_texture("sky", "Earth/Nebo")
+        # Sky (no transparency)
+        self.texture_loader.load_texture("sky", "Earth/Nebo", False)
         
-        # Trees - Tree1 from Earth, Tree2 from Death
-        self.texture_loader.load_texture("tree1", "Earth/Tree1")
-        self.texture_loader.load_texture("tree2", "Death/Tree2")
+        # Trees (WITH transparency)
+        self.texture_loader.load_texture("tree1", "Earth/Tree1", True)
+        self.texture_loader.load_texture("tree2", "Death/Tree2", True)
         
-        # Fire and Smoke - Smoke from Earth, Fire from Death
-        self.texture_loader.load_texture("smoke", "Earth/Smoke")
-        self.texture_loader.load_texture("fire", "Death/Faire")
+        # Fire and Smoke (WITH transparency)
+        self.texture_loader.load_texture("smoke", "Earth/Smoke", True)
+        self.texture_loader.load_texture("fire", "Death/Faire", True)
         
-        # NIZZ (rotating floor underneath)
-        self.texture_loader.load_texture("nizz_earth", "Earth/Nizz")
-        self.texture_loader.load_texture("nizz_death", "Death/Nizz")
+        # NIZZ floor (no transparency)
+        self.texture_loader.load_texture("nizz_earth", "Earth/Nizz", False)
+        self.texture_loader.load_texture("nizz_death", "Death/Nizz", False)
         
-        # Computer cube
-        self.texture_loader.load_texture("computer", "CompKub")
+        # Computer cube (no transparency)
+        self.texture_loader.load_texture("computer", "CompKub", False)
         
-        # Intro/Logo
-        self.texture_loader.load_texture("intro_earth", "Earth/Intro1")
-        self.texture_loader.load_texture("intro_death", "Death/Intro1")
-        self.texture_loader.load_texture("logo", "IntroD4D")
+        # Intro/Logo (no transparency)
+        self.texture_loader.load_texture("intro_earth", "Earth/Intro1", False)
+        self.texture_loader.load_texture("intro_death", "Death/Intro1", False)
+        self.texture_loader.load_texture("logo", "IntroD4D", False)
         
         print(f"\nTotal textures loaded: {len(self.texture_loader.textures)}")
         
