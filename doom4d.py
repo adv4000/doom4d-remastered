@@ -69,9 +69,13 @@ class TextureLoader:
         try:
             surface = pygame.image.load(str(full_path))
             
-            # Convert to RGBA with black as transparent (color key from VB6)
-            if surface.get_format().BytesPerPixel == 3:
+            # Convert to RGBA with transparency (color key from VB6)
+            if surface.get_format().BytesPerPixel == 3 or str(full_path).lower().endswith('.bmp'):
                 surface = self.make_transparent(surface)
+            
+            # Also check for PNG without alpha
+            elif surface.get_alpha() is None:
+                surface = surface.convert_alpha()
             
             # Flip for OpenGL coordinate system
             surface = pygame.transform.flip(surface, False, True)
@@ -317,9 +321,7 @@ class Doom4D:
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         
-        # Alpha test for transparent textures (black = transparent, like original VB6)
-        glEnable(GL_ALPHA_TEST)
-        glAlphaFunc(GL_GREATER, 0.1)
+        # Note: No alpha test - use blending only for transparency
         
         # Perspective projection
         glMatrixMode(GL_PROJECTION)
