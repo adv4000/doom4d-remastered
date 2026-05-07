@@ -272,8 +272,9 @@ class Doom4D:
         # Intro animation state
         self.intro_stage = 0
         self.intro_timer = 0
-        self.intro_zoom = 0.0  # Start at 0 (full screen), increase to 80 (shrink)
+        self.intro_zoom = 0.0
         self.intro_running = True
+        self.intro_hold_timer = 0
         
         # Game objects
         self.player = Player()
@@ -345,8 +346,7 @@ class Doom4D:
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
         
-        # Background color
-        glClearColor(0.0, 0.0, 0.2, 1.0)
+        glClearColor(0.0, 0.0, 0.0, 1.0)  # Black background
         
     def load_all_textures(self):
         """Load all textures from both Earth and Death areas"""
@@ -1229,10 +1229,13 @@ class Doom4D:
         
         # Zoom animation (PicShowed = 6 in original, runs EVERY FRAME)
         if self.intro_stage >= 6:
-            # Zoom OUT: x increases from 0 to 80 (logo shrinks from full screen)
-            self.intro_zoom = min(80.0, self.intro_zoom + 0.5 * (dt / 16.67))
-            if self.intro_zoom >= 80.0:
-                self.intro_running = False
+            if self.intro_zoom < 80.0:
+                self.intro_zoom = min(80.0, self.intro_zoom + 0.5 * (dt / 16.67))
+            else:
+                # Hold for 2 seconds after zoom completes
+                self.intro_hold_timer += dt
+                if self.intro_hold_timer > 2000:
+                    self.intro_running = False
         
     def render(self):
         """Render the scene"""
