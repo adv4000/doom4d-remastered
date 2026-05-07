@@ -983,7 +983,7 @@ class Doom4D:
                     glTexCoord2f(0.5, 1); glVertex2i(SCREEN_W//2, SCREEN_H)
                     glEnd()
         
-        # Stage 5+: Full intro picture + zooming logo overlay
+        # Stage 5: Full intro picture (before zoom)
         if self.intro_stage >= 5:
             # Full intro picture
             self.texture_loader.bind(texture_name)
@@ -995,16 +995,18 @@ class Doom4D:
                 glTexCoord2f(1, 1); glVertex2i(SCREEN_W, SCREEN_H)
                 glTexCoord2f(0, 1); glVertex2i(0, SCREEN_H)
                 glEnd()
-            
-            # Logo overlay - zoom IN (margin increases from edges)
-            # From original: DDRect(x, Y, ScreenW - x, ScreenH - Y)
-            # x,Y start at 0 and increase to 80
+        
+        # Stage 6+: Logo overlay - zoom IN from corners
+        # From original: DDRect(x, Y, ScreenW - x, ScreenH - Y)
+        # x,Y start at 0 and increase to 80 (logo grows from corners)
+        if self.intro_stage >= 6:
             if "logo" in self.texture_loader.textures:
                 self.texture_loader.bind("logo")
                 glColor4f(1, 1, 1, 1)
                 
                 margin = int(self.intro_zoom)
                 if margin > 0:
+                    # Logo appears in center and expands to fill screen
                     glBegin(GL_QUADS)
                     glTexCoord2f(0, 0); glVertex2i(margin, margin)
                     glTexCoord2f(1, 0); glVertex2i(SCREEN_W - margin, margin)
@@ -1221,12 +1223,14 @@ class Doom4D:
                 self.sound.play_sound("intro3")
             elif self.intro_stage == 4:
                 self.sound.play_sound("intro4")
+            elif self.intro_stage == 6:
+                self.sound.play_sound("intro0")
         
-        # Zoom animation (stage 6 in original, runs every frame, not every 3s)
-        if self.intro_stage >= 5:
-            # Zoom in every frame (x = x + 0.3 in original loop)
-            self.intro_zoom = min(80, self.intro_zoom + 0.3 * (dt / 16.67))  # Normalize to ~60fps
-            if self.intro_zoom >= 80:
+        # Zoom animation (PicShowed = 6 in original, runs EVERY FRAME)
+        if self.intro_stage >= 6:
+            # Zoom in every frame (x = x + 0.3 in original Do loop)
+            self.intro_zoom = min(80.0, self.intro_zoom + 0.3 * (dt / 16.67))  # Normalize to ~60fps
+            if self.intro_zoom >= 80.0:
                 self.intro_running = False
         
     def render(self):
