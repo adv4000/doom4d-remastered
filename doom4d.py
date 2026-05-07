@@ -261,7 +261,7 @@ class Doom4D:
         pygame.init()
         pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
         
-        self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), DOUBLEBUF | OPENGL)
+        self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), DOUBLEBUF | OPENGL | FULLSCREEN)
         pygame.display.set_caption(TITLE)
         
         self.running = True
