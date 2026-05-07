@@ -818,7 +818,7 @@ class Doom4D:
         glMatrixMode(GL_PROJECTION)
         glPushMatrix()
         glLoadIdentity()
-        glOrtho(0, SCREEN_W, 0, SCREEN_H, -1, 1)
+        glOrtho(0, SCREEN_W, SCREEN_H, 0, -1, 1)
         glMatrixMode(GL_MODELVIEW)
         glPushMatrix()
         glLoadIdentity()
@@ -837,14 +837,14 @@ class Doom4D:
             glColor4f(1, 1, 1, 1)
             
             px = margin
-            py = margin
+            py = SCREEN_H - bar_h - margin
             pw = int(self.player.energy * scale)  # Width based on energy
             
             glBegin(GL_QUADS)
-            glTexCoord2f(0, 1); glVertex2i(px, py)
-            glTexCoord2f(self.player.energy / 100.0, 1); glVertex2i(px + pw, py)
-            glTexCoord2f(self.player.energy / 100.0, 0); glVertex2i(px + pw, py + bar_h)
-            glTexCoord2f(0, 0); glVertex2i(px, py + bar_h)
+            glTexCoord2f(0, 0); glVertex2i(px, py)
+            glTexCoord2f(self.player.energy / 100.0, 0); glVertex2i(px + pw, py)
+            glTexCoord2f(self.player.energy / 100.0, 1); glVertex2i(px + pw, py + bar_h)
+            glTexCoord2f(0, 1); glVertex2i(px, py + bar_h)
             glEnd()
         
         # Computer energy (bottom right)
@@ -853,14 +853,14 @@ class Doom4D:
             glColor4f(1, 1, 1, 1)
             
             cx = SCREEN_W - bar_w - margin
-            cy = margin
+            cy = SCREEN_H - bar_h - margin
             cw = int(self.computer.energy * scale)  # Width based on energy
             
             glBegin(GL_QUADS)
-            glTexCoord2f(0, 1); glVertex2i(cx, cy)
-            glTexCoord2f(self.computer.energy / 100.0, 1); glVertex2i(cx + cw, cy)
-            glTexCoord2f(self.computer.energy / 100.0, 0); glVertex2i(cx + cw, cy + bar_h)
-            glTexCoord2f(0, 0); glVertex2i(cx, cy + bar_h)
+            glTexCoord2f(0, 0); glVertex2i(cx, cy)
+            glTexCoord2f(self.computer.energy / 100.0, 0); glVertex2i(cx + cw, cy)
+            glTexCoord2f(self.computer.energy / 100.0, 1); glVertex2i(cx + cw, cy + bar_h)
+            glTexCoord2f(0, 1); glVertex2i(cx, cy + bar_h)
             glEnd()
         
         glEnable(GL_DEPTH_TEST)
