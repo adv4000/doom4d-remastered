@@ -1,4 +1,4 @@
-# DOOM 4D – Python Port
+# DOOM 4D – Python Port REMASTERED
 
 > Original Game by **Denis Astahov**, 2004  
 > Bachelor Degree Final Project — Score: **95 / 100**  
