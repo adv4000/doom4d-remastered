@@ -1203,9 +1203,9 @@ def run_gameover() -> bool:
     stop_music()
     play_sound("Death_end.wav")
 
-    font_big   = pygame.font.SysFont("impact",  38)
-    font_med   = pygame.font.SysFont("impact",  26)
-    font_small = pygame.font.SysFont("consolas", 20)
+    font_big   = pygame.font.SysFont("impact",  70)
+    font_med   = pygame.font.SysFont("impact",  55)
+    font_small = pygame.font.SysFont("consolas", 60)
 
     gameover_tex = gs.tex["gameover"]
     expand = 0
@@ -1230,7 +1230,8 @@ def run_gameover() -> bool:
                 (font_med,   (255,   0,   0), f"You Kill Monster  →  {gs.player_win} Times !!!"),
                 (font_med,   (255,   0,   0), f"Your Play Time  →  {gs.play_time // 60} Minutes"),
                 (font_small, (128,  70, 255), "Come Back Soon !!!"),
-                (font_small, (255, 255, 255), "Created by Denis Astahov  ©2004     Remastered Python Port 2026"),
+                (font_small, (255, 255, 255), "Created by Denis Astahov  ©2004 "),
+                (font_small, (0,   255,   0), "Remastered by AI to Python ©2026"),
                 (font_med,   (255,   0, 255), "Press N  to New Game!      ESC  to Exit..."),
             ]
             y_off = 30
