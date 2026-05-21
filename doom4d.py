@@ -607,6 +607,13 @@ def render_world():
     glDisable(GL_ALPHA_TEST)
 
     # Trees (alpha-blended crossed billboards)
+    # GL_ALPHA_TEST must be enabled here so that fully-transparent (alpha==0)
+    # pixels are discarded BEFORE the depth write.  Without it, the depth
+    # buffer gets filled with "invisible" pixels from the first billboard plane,
+    # and the second crossed plane (and nearby sprites) fail the depth test and
+    # disappear entirely.
+    glEnable(GL_ALPHA_TEST)
+    glAlphaFunc(GL_GREATER, 0.1)
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
@@ -631,6 +638,7 @@ def render_world():
         draw_sprite_cross(fx, fz, fh, fw, u1, v1, u2, v2)
 
     glDisable(GL_BLEND)
+    glDisable(GL_ALPHA_TEST)
     glPopMatrix()
 
     # ── Lower floor (Nizz) ────────────────────────────────────────────────────
@@ -671,7 +679,18 @@ def render_enemy():
     glEnable(GL_TEXTURE_2D)
     glBindTexture(GL_TEXTURE_2D, gs.tex["comp"])
     glColor4f(1, 1, 1, 1)
+    # The comp texture uses black_key=True (black pixels → alpha 0).
+    # Enable alpha-test so those transparent pixels are discarded before the
+    # depth write; without this the invisible black pixels fill the depth buffer
+    # and the cube appears to vanish (or flicker) when viewed from a distance
+    # or at certain angles.
+    glEnable(GL_ALPHA_TEST)
+    glAlphaFunc(GL_GREATER, 0.1)
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
     draw_cube(10)
+    glDisable(GL_BLEND)
+    glDisable(GL_ALPHA_TEST)
     glPopMatrix()
 
 
