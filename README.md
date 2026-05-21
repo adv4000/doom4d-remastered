@@ -59,6 +59,8 @@ doom4d-remastered/
 └── Music/             # Background music
 ```
 
+Video of Gameplay: https://youtu.be/bJO7_PSN9HY
+
 ## Original source
 
 https://github.com/adv4000/doom4d
