@@ -2,7 +2,7 @@
 
 > Original Game by **Denis Astahov**, 2004  
 > Bachelor Degree Final Project — Score: **95 / 100**  
-> VB6 + DirectX 7 → Python 3.14+ port using **pygame + PyOpenGL**
+> VB6 + DirectX 7 → Python 3.12+ port using **pygame + PyOpenGL**
 
 ## 🎮 About
 
