@@ -5,7 +5,7 @@
 ║                                                              ║
 ║  Original: VB6 + DirectX 7  by Denis Astahov  (c) 2004      ║
 ║  Score: 95/100  Bachelor Degree Final Project                ║
-║  Python Port: pygame + PyOpenGL  (Python 3.14+)              ║
+║  Python Port: pygame + PyOpenGL  (Python 3.12+)              ║
 ╚══════════════════════════════════════════════════════════════╝
 
 Controls:
@@ -93,7 +93,7 @@ FRAME_Y   = 4           # animation sprite rows
 
 # Resolutions (mirroring VB6 FormMenu VideoMode ComboBox exactly)
 RESOLUTIONS = [
-    (1280, 1024, "1280 × 1024"),              # default (original VB6 max)
+    (1280, 720, "1280 × 720"),              # default (original VB6 max)
     (1920, 1080, "1920 × 1080  Full HD"),
     (2560, 1440, "2560 × 1440  2K"),
     (3840, 2160, "3840 × 2160  4K Ultra HD"),
@@ -903,17 +903,17 @@ def run_menu() -> int | None:
     global SCREEN_W, SCREEN_H, _res_index
 
     # ── Scale factor — change S to 1 to restore original 800×600 size ────────
-    S  = 2
-    MW = 800 * S   # menu window width  (1600)
-    MH = 600 * S   # menu window height (1200)
+    S  = 1.6       # 20% smaller than original S=2 (1280×960 instead of 1600×1200)
+    MW = int(800 * S)   # menu window width  (1280)
+    MH = int(600 * S)   # menu window height (960)
     CX = MW // 2   # centre X
 
     screen = pygame.display.set_mode((MW, MH))
     pygame.display.set_caption("Doom Fourth Dimension")
 
-    font_title = pygame.font.SysFont("impact",   42 * S)
-    font_res   = pygame.font.SysFont("consolas", 16 * S)
-    font_small = pygame.font.SysFont("consolas", 17 * S)
+    font_title = pygame.font.SysFont("impact",   int(42 * S))
+    font_res   = pygame.font.SysFont("consolas", int(16 * S))
+    font_small = pygame.font.SysFont("consolas", int(17 * S))
 
     # ── Original VB6 menu assets extracted from FormMenu.frx ─────────────────
     menu_bg = None
@@ -923,7 +923,7 @@ def run_menu() -> int | None:
     except Exception:
         pass
 
-    BTN_W, BTN_H = 450 * S, 70 * S
+    BTN_W, BTN_H = int(450 * S), int(70 * S)
 
     btn_earth_img = btn_death_img = None
     try:
@@ -945,9 +945,9 @@ def run_menu() -> int | None:
     dd_open    = False
     dd_sel     = _res_index
 
-    DD_W, DD_H = 220 * S, 30 * S
+    DD_W, DD_H = int(220 * S), int(30 * S)
     dd_x       = CX - DD_W // 2
-    dd_y       = 415 * S
+    dd_y       = int(415 * S)
     dd_rect    = pygame.Rect(dd_x, dd_y, DD_W, DD_H)
     opt_rects  = [pygame.Rect(dd_x, dd_y + DD_H + i * DD_H, DD_W, DD_H)
                   for i in range(len(RESOLUTIONS))]
@@ -983,11 +983,11 @@ def run_menu() -> int | None:
             screen.blit(img_e, btn_earth_rect)
             pygame.draw.rect(screen,
                              (120, 255, 120) if hover_e else (80, 160, 80),
-                             btn_earth_rect, 2 * S)
+                             btn_earth_rect, int(2 * S))
         else:
             pygame.draw.rect(screen, (60,140,60) if hover_e else (30,80,30),
-                             btn_earth_rect, border_radius=5 * S)
-            pygame.draw.rect(screen, (100,220,100), btn_earth_rect, 2, border_radius=5 * S)
+                             btn_earth_rect, border_radius=int(5 * S))
+            pygame.draw.rect(screen, (100,220,100), btn_earth_rect, 2, border_radius=int(5 * S))
             lbl = font_res.render("EARTH  —  Green Zone", True, (200,255,200))
             screen.blit(lbl, (btn_earth_rect.centerx - lbl.get_width()//2,
                                btn_earth_rect.centery - lbl.get_height()//2))
@@ -1001,11 +1001,11 @@ def run_menu() -> int | None:
             screen.blit(img_d, btn_death_rect)
             pygame.draw.rect(screen,
                              (255, 100, 100) if hover_d else (160, 60, 60),
-                             btn_death_rect, 2 * S)
+                             btn_death_rect, int(2 * S))
         else:
             pygame.draw.rect(screen, (150,35,35) if hover_d else (80,20,20),
-                             btn_death_rect, border_radius=5 * S)
-            pygame.draw.rect(screen, (220,80,80), btn_death_rect, 2, border_radius=5 * S)
+                             btn_death_rect, border_radius=int(5 * S))
+            pygame.draw.rect(screen, (220,80,80), btn_death_rect, 2, border_radius=int(5 * S))
             lbl = font_res.render("DEATH  —  Hell Zone", True, (255,180,180))
             screen.blit(lbl, (btn_death_rect.centerx - lbl.get_width()//2,
                                btn_death_rect.centery - lbl.get_height()//2))
