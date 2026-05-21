@@ -62,3 +62,5 @@ doom4d-remastered/
 ## Original source
 
 https://github.com/adv4000/doom4d
+
+### By AI and Denis Astahov 2026.
